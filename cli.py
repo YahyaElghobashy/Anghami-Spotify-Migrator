@@ -408,6 +408,7 @@ def main():
         'stats': cli.show_command_stats,
         'upcom': cli.upcom,
         'excom': cli.excom,
+        'quick-show': cli.show_quick_commands,
         'quick-commands': cli.export_quick_commands,
     }
     

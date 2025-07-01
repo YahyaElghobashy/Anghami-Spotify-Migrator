@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Timeline, TimelineStep } from '../ui/Timeline';
 import { ScreenTransition } from '../ui/ScreenTransition';
 import AnghamiIcon from '../../assets/anghami-icon.svg';
+import AnghamiLogo from '../../assets/anghami-logo.svg';
 
 // Import types for Spotify verification
 interface SpotifyProfile {
@@ -159,12 +160,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   </div>
                 </div>
                 <div className="hidden sm:block">
-                  <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                    Migration Tool
-                  </h1>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Anghami → Spotify
-                  </p>
+                  <img 
+                    src={AnghamiLogo} 
+                    alt="Anghami to Spotify Migration" 
+                    className="h-8"
+                  />
                 </div>
               </button>
             </div>
