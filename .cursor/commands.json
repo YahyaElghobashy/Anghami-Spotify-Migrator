@@ -1,0 +1,44 @@
+{
+  "commands": [
+    {
+      "name": "Anghami: Start Development",
+      "command": "python3 cli.py start-dev",
+      "description": "Start both backend and frontend development servers"
+    },
+    {
+      "name": "Anghami: Check Status", 
+      "command": "python3 cli.py status",
+      "description": "Show project status and running services"
+    },
+    {
+      "name": "Anghami: Kill Servers",
+      "command": "python3 cli.py kill-servers", 
+      "description": "Stop all running development servers"
+    },
+    {
+      "name": "Anghami: Test Backend",
+      "command": "python3 cli.py test-backend",
+      "description": "Test all backend API endpoints"
+    },
+    {
+      "name": "Anghami: Update Quick Commands",
+      "command": "python3 cli.py quick-commands",
+      "description": "Update QUICK_COMMANDS.md with latest usage stats"
+    },
+    {
+      "name": "Anghami: View Command Stats",
+      "command": "python3 cli.py stats", 
+      "description": "Show most used and recent commands"
+    },
+    {
+      "name": "Anghami: Clean Install",
+      "command": "python3 cli.py clean-install",
+      "description": "Clean reinstall all dependencies"
+    },
+    {
+      "name": "Anghami: Check Integration",
+      "command": "python3 cli.py check-integration",
+      "description": "Verify frontend and backend are running properly"
+    }
+  ]
+} 

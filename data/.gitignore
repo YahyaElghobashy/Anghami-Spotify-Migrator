@@ -1,0 +1,6 @@
+# Ignore all sensitive data files
+*.db
+.keyvault
+*.log
+temp/
+screenshots/
