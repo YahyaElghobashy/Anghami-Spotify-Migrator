@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Timeline, TimelineStep } from '../ui/Timeline';
 import { ScreenTransition } from '../ui/ScreenTransition';
 import AnghamiIcon from '../../assets/anghami-icon.svg';
+import AnghamiIconPng from '../../assets/anghami-icon.png';
 import AnghamiLogo from '../../assets/anghami-logo.svg';
 
 // Import types for Spotify verification
@@ -144,11 +145,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 className="flex items-center space-x-3 hover:opacity-80 transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-md px-2 py-1"
               >
                 <div className="flex items-center space-x-2">
-                  {/* Official Anghami Icon */}
+                  {/* Official Anghami Icon with PNG fallback */}
                   <img 
                     src={AnghamiIcon} 
                     alt="Anghami" 
                     className="w-8 h-8 rounded-md"
+                    onError={(e) => {
+                      // Fallback to PNG version if SVG fails
+                      const target = e.target as HTMLImageElement;
+                      target.src = AnghamiIconPng;
+                    }}
                   />
                   {/* Arrow */}
                   <svg className="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
@@ -160,11 +166,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   </div>
                 </div>
                 <div className="hidden sm:block">
-                  <img 
-                    src={AnghamiLogo} 
-                    alt="Anghami to Spotify Migration" 
-                    className="h-8"
-                  />
+                  {/* Official Anghami Logo with enhanced styling for black text */}
+                  <div className="flex items-center space-x-2">
+                    <img 
+                      src={AnghamiLogo} 
+                      alt="Anghami" 
+                      className="h-6 dark:invert dark:brightness-0 dark:contrast-100"
+                      style={{ filter: 'brightness(0.2)' }}
+                    />
+                    <span className="text-slate-600 dark:text-slate-300 text-sm font-medium">
+                      → Spotify Migration
+                    </span>
+                  </div>
                 </div>
               </button>
             </div>
