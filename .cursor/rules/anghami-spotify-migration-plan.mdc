@@ -1,0 +1,733 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+
+## 📋 Project Overview
+
+**Objective**: Build a comprehensive migration tool that transfers user-created playlists from Anghami to Spotify with full metadata, cover art, and track matching capabilities.
+
+**Architecture**: Modular, phase-based development with independent components that can be tested and debugged separately.
+
+**Tech Stack**:
+- Python 3.10+
+- Spotify Web API (OAuth2 Authorization Code Flow)
+- Web scraping for Anghami (BeautifulSoup4, Selenium)
+- Rich/Textual for UI components
+- Requests for HTTP operations
+- Pillow for image processing
+
+---
+
+## **Phase 3.5**
+
+### **Phase C: Playlist Enhancement System** 🎵 *READY TO START*
+
+#### **C.1 - Real Anghami Playlist Integration (Days 8-9)** ✅ **COMPLETED**
+- **Backend Changes**: ✅ **ALL IMPLEMENTED**
+  - ✅ **Removed hardcoded playlist data** from `backend_api.py` `/playlists` endpoint 
+  - ✅ **Created AnghamiUserPlaylistDiscoverer** as complementary script to extract user playlists
+  - ✅ **Implemented playlist type detection** (created vs followed playlists)
+  - ✅ **Added profile-based playlist discovery** that navigates to sectionId=5 (created) and sectionId=10 (followed)
+  - ✅ **Error handling** for private/restricted playlists with graceful fallbacks
+  - ✅ **Enhanced pagination support** with 4-phase aggressive scrolling system
+
+**Implemented API Endpoints**: ✅
+```python
+GET /playlists  # Now uses real extraction instead of hardcoded data
+GET /playlists/{playlist_id}  # Enhanced with real track extraction
+GET /anghami/playlists?type=all|created|followed&page=1&limit=20  # NEW
+GET /anghami/playlists/summary  # NEW - Total counts by type
+```
+
+**Key Accomplishments**:
+- ✅ **Real Playlist Discovery**: `anghami_user_playlist_discoverer.py` successfully extracts both created and followed playlists
+- ✅ **Enhanced Scrolling**: 4-phase scrolling system ensures ALL playlists are loaded
+- ✅ **Playlist Type Detection**: Clear distinction between user-created (🎵) and followed (➕) playlists
+- ✅ **Backend Integration**: All endpoints now use real data extraction instead of hardcoded samples
+- ✅ **Error Handling**: Graceful fallbacks for failed extractions with informative error messages
+- ✅ **Testing Validated**: Successfully tested on profiles 3186485 (23 playlists) and 16055208 (multiple playlists)
+
+**Technical Implementation Details**:
+- Created new `AnghamiUserPlaylistDiscoverer` class with enhanced scrolling
+- Updated `backend_api.py` to integrate real playlist extraction
+- Added pagination and filtering support
+- Implemented comprehensive error handling and logging
+- Real cover art URLs, descriptions, and metadata extraction
+
+**Enhanced AnghamiProfileExtractor Methods**:
+```python
+async def extract_user_playlists(self, profile_url: str, playlist_type: str = "all") -> List[AnghamiPlaylistSummary]
+async def extract_created_playlists(self, page) -> List[AnghamiPlaylistSummary]  
+async def extract_followed_playlists(self, page) -> List[AnghamiPlaylistSummary]
+async def get_playlist_metadata(self, playlist_url: str) -> AnghamiPlaylistMetadata
+```
+
+#### **C.2 - Spotify Playlist Retrieval System (Days 9-10)** ✅ **COMPLETED**
+- **Backend Changes**: ✅ **ALL IMPLEMENTED**
+  - ✅ **Implemented SpotifyPlaylistExtractor** using official Spotify Web API (not web scraping)
+  - ✅ **Fetch complete playlist metadata** (name, description, cover art, track count, track list, duration)
+  - ✅ **Distinguish between owned vs followed** Spotify playlists with clear indicators
+  - ✅ **Cache Spotify playlist data** with file storage and database integration
+  - ✅ **Add playlist content retrieval** for sync functionality with full track details
+
+**Implemented Components**: ✅
+```python
+# src/extractors/spotify_playlist_extractor.py - CREATED
+class SpotifyPlaylistExtractor:
+    async def extract_user_playlists(self, user_id: str, include_followed: bool = True) -> SpotifyUserPlaylists
+    async def extract_playlist_details(self, playlist_id: str, include_tracks: bool = True) -> SpotifyPlaylist
+    async def _get_playlist_tracks(self, playlist_id: str) -> List[SpotifyTrack]
+    async def _get_owned_playlists(self, user_id: str, include_tracks: bool = False) -> List[SpotifyPlaylist]
+    async def _get_followed_playlists(self, user_id: str, include_tracks: bool = False) -> List[SpotifyPlaylist]
+
+# src/models/spotify_models.py - CREATED
+class SpotifyPlaylist, SpotifyTrack, SpotifyUserPlaylists
+```
+
+**Implemented API Endpoints**: ✅
+```python
+GET /spotify/playlists/{user_id}?type=all|owned|followed&include_tracks=false&page=1&limit=20  # NEW
+GET /spotify/playlists/{playlist_id}/details  # NEW - Full playlist details with tracks
+GET /spotify/playlists/{playlist_id}/tracks   # NEW - Track-only endpoint
+POST /spotify/playlists/batch-details         # NEW - Bulk playlist details
+```
+
+**Key Accomplishments**:
+- ✅ **Official Spotify Web API Integration** - Uses authenticated requests, not web scraping
+- ✅ **Complete Metadata Extraction** - Name, description, cover art, track count, duration, follower count
+- ✅ **Ownership Detection** - Clear distinction between owned (🎵) and followed (➕) playlists
+- ✅ **Full Track Details** - Including artists, album, duration, popularity, added_at, added_by
+- ✅ **Pagination Support** - Handles Spotify's API pagination automatically
+- ✅ **Cover Art Download** - Downloads and caches playlist cover art locally
+- ✅ **Token Management** - Integrates with existing OAuth system and database
+- ✅ **Error Handling** - Comprehensive error handling with graceful fallbacks
+- ✅ **Performance Optimized** - Efficient API usage with batch operations
+
+**Technical Implementation Details**:
+- Reuses same patterns as `anghami_direct_extractor.py` for consistency
+- Follows same configuration, logging, and directory management
+- Integrates seamlessly with existing backend API structure
+- Uses database for token storage and management
+- Includes token expiration checking and refresh preparation
+
+#### **C.3 - Enhanced Playlist Display & Filtering (Days 10-11)**
+- **Backend Changes**:
+  - **Replace sample data** with real Anghami playlist extraction
+  - **Add playlist metadata** (creator, creation date, source, type)
+  - **Implement advanced filtering** by type, creator, date range
+  - **Add search functionality** across playlist names and descriptions
+
+- **Frontend Changes**:
+  - **Filter toggles** (Created | Followed | All) for both Anghami and Spotify
+  - **Visual indicators** for playlist types and ownership
+  - **Real cover art display** from both Anghami and Spotify
+  - **Creator information** and creation dates
+  - **Accurate track counts** and duration
+  - **Playlist preview** on hover with first few tracks
+  - **Search and sort** functionality
+
+**Enhanced Data Models**:
+```python
+@dataclass
+class PlaylistSummary:
+    id: str
+    name: str
+    creator_name: str
+    track_count: int
+    is_owned: bool  # True if user created it
+    is_followed: bool  # True if user follows it
+    source: str  # "anghami" or "spotify"
+    cover_art_url: Optional[str]
+    description: Optional[str]
+    created_date: Optional[datetime]
+    last_modified: Optional[datetime]
+
+@dataclass 
+class PlaylistComparisonResult:
+    anghami_playlist: PlaylistSummary
+    spotify_match: Optional[PlaylistSummary] = None
+    similarity_score: float = 0.0
+    sync_recommended: bool = False
+    migration_recommended: bool = True
+```
+
+#### **C.4 - Sync vs Migration Detection (Days 11-12)**
+- **Backend Changes**:
+  - **Implement playlist matching algorithm** to detect potential Spotify equivalents
+  - **Add change detection** for existing migrated playlists
+  - **Compare track lists** between Anghami and Spotify versions
+  - **Generate sync recommendations** based on playlist similarity
+
+- **Frontend Changes**:
+  - **Sync/Migration toggle** for each playlist pair
+  - **Similarity indicators** showing match confidence
+  - **Change detection badges** (new tracks, removed tracks, metadata changes)
+  - **Sync preview** showing what changes would be made
+
+**New API Endpoints**:
+```python
+POST /playlists/detect-matches  # Find Spotify equivalents for Anghami playlists
+GET /playlists/{anghami_id}/sync-analysis/{spotify_id}
+POST /playlists/sync-preview  # Preview sync changes
+```
+
+#### **C.5 - Advanced Playlist Management (Day 12)**
+- **Implementation**:
+  - **Bulk selection** with smart filters
+  - **Playlist grouping** by creator or date
+  - **Duplicate detection** across services
+  - **Export/import** playlist selections
+  - **Migration history** tracking
+
+**New Features**:
+```python
+# Bulk operations
+POST /playlists/bulk-analyze  # Analyze multiple playlists
+POST /playlists/bulk-sync-preview  # Preview multiple sync operations
+
+# Smart recommendations
+GET /playlists/recommendations  # Suggest playlists to migrate/sync
+GET /playlists/duplicates  # Find potential duplicates
+
+# History and state
+GET /playlists/migration-history/{profile_url}
+POST /playlists/save-selection  # Save playlist selection for later
+```
+
+---
+
+### **Phase C Implementation Details**
+
+#### **Enhanced Database Schema**
+```sql
+-- Anghami Playlists Cache
+CREATE TABLE anghami_playlists (
+    id TEXT PRIMARY KEY,
+    profile_url TEXT NOT NULL,
+    name TEXT NOT NULL,
+    creator_name TEXT,
+    track_count INTEGER,
+    is_owned BOOLEAN,
+    is_followed BOOLEAN,
+    cover_art_url TEXT,
+    description TEXT,
+    anghami_url TEXT,
+    extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_url) REFERENCES profile_history (profile_url)
+);
+
+-- Spotify Playlists Cache  
+CREATE TABLE spotify_playlists (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    owner_id TEXT,
+    track_count INTEGER,
+    is_owned BOOLEAN,
+    is_followed BOOLEAN,
+    cover_art_url TEXT,
+    description TEXT,
+    spotify_url TEXT,
+    last_synced TIMESTAMP,
+    created_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (user_id)
+);
+
+-- Playlist Mappings for Sync
+CREATE TABLE playlist_mappings (
+    id INTEGER PRIMARY KEY,
+    anghami_playlist_id TEXT,
+    spotify_playlist_id TEXT,
+    similarity_score REAL,
+    mapping_type TEXT, -- 'migration', 'sync', 'manual'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_sync TIMESTAMP,
+    FOREIGN KEY (anghami_playlist_id) REFERENCES anghami_playlists (id),
+    FOREIGN KEY (spotify_playlist_id) REFERENCES spotify_playlists (id)
+);
+```
+
+#### **Key Configuration Updates**
+```python
+# config/config.json - Add new sections
+{
+    "anghami_extraction": {
+        "playlist_discovery": {
+            "created_playlists_selector": ".profile-playlists .created-section",
+            "followed_playlists_selector": ".profile-playlists .followed-section", 
+            "playlist_card_selector": ".playlist-item",
+            "pagination_selector": ".pagination-next"
+        }
+    },
+    "spotify_extraction": {
+        "api_limits": {
+            "playlists_per_request": 50,
+            "tracks_per_request": 100
+        }
+    },
+    "sync_detection": {
+        "similarity_threshold": 0.8,
+        "track_match_threshold": 0.7,
+        "name_similarity_weight": 0.4,
+        "track_similarity_weight": 0.6
+    }
+}
+```
+
+#### **Success Criteria for Phase C**
+- [ ] **Real Anghami playlists** load dynamically from any profile URL
+- [ ] **Created vs followed** playlist filtering works correctly  
+- [ ] **Spotify playlist retrieval** shows user's existing playlists
+- [ ] **Sync detection** identifies potential playlist matches
+- [ ] **Visual indicators** clearly show playlist types and sync status
+- [ ] **No hardcoded data** remains in the system
+- [ ] **Bulk selection** and filtering work efficiently
+- [ ] **Real cover art** and metadata display correctly
+- [ ] **Migration vs sync options** available for each playlist
+- [ ] **Performance** acceptable with 100+ playlists per service
+
+---
+
+### **Phase D: Track-Level Management** 🎧 *Priority 4*
+
+#### **D.1 - Track Visibility System (Days 12-13)**
+- **Backend Changes**:
+  - Extend playlist endpoints to include track lists
+  - Implement track-level confidence scoring
+- **Frontend Changes**:
+  - Create expandable playlist cards showing tracks
+  - Display track title, artist, album, duration
+  - Add track selection/deselection checkboxes
+
+#### **D.2 - Track Matching Review (Days 13-14)**
+- **Backend Changes**:
+  - Implement Spotify track matching with confidence scores
+  - Create track review endpoints for low-confidence matches
+- **Frontend Changes**:
+  - Create track review screen before migration
+  - Show proposed Spotify matches with confidence
+  - Allow manual track selection and search
+
+#### **D.3 - Track Selection Management (Day 14)**
+- **Implementation**:
+  - Implement bulk track selection/deselection
+  - Add track filtering by confidence score
+  - Create track count and duration summaries
+
+---
+
+### **Phase E: Sync & Transfer Features** ⚡ *Priority 5*
+
+#### **E.1 - Transfer History System (Days 15-16)**
+- **Backend Changes**:
+  - Implement transfer history database
+  - Track completed migrations with timestamps
+  - Store mapping between Anghami and Spotify playlists
+- **Frontend Changes**:
+  - Create transfer history screen
+  - Display previously migrated playlists
+  - Show sync status and last update times
+
+#### **E.2 - Incremental Sync Detection (Days 16-17)**
+- **Backend Changes**:
+  - Implement change detection for Anghami playlists
+  - Compare current vs last migrated state
+  - Identify new, modified, and deleted tracks
+- **Frontend Changes**:
+  - Show sync status indicators
+  - Notify about playlist changes since last migration
+  - Offer incremental update options
+
+#### **E.3 - Sync Management Interface (Day 17)**
+- **Implementation**:
+  - Create sync settings and preferences
+  - Implement automatic sync scheduling options
+  - Add conflict resolution for changed tracks
+
+---
+
+### **Phase F: Testing & Production Readiness** 🧪 *Priority 6*
+
+#### **F.1 - Comprehensive Testing (Days 18-19)**
+- **Real-World Testing**:
+  - Test with actual Anghami profile: https://play.anghami.com/profile/3186485
+  - Verify all hardcoded data is eliminated
+  - Test error handling for edge cases
+- **Performance Testing**:
+  - Load testing with large playlists
+  - UI responsiveness validation
+  - Memory and performance optimization
+
+#### **F.2 - Error Handling & Edge Cases (Day 19)**
+- **Implementation**:
+  - Handle invalid profile URLs gracefully
+  - Manage private/restricted content access
+  - Implement network failure recovery
+  - Add authentication expiry handling
+
+#### **F.3 - Production Deployment (Day 20)**
+- **Final Steps**:
+  - Environment configuration verification
+  - Documentation updates
+  - Deployment readiness checklist
+  - User acceptance testing
+
+---
+
+
+### Phase 6: Comprehensive Logging & Missing Track Management
+**Duration**: 2-3 days  
+**Priority**: Medium
+
+#### 6.1 Advanced Logging System
+**Objective**: Implement detailed logging for debugging and user feedback
+
+**Log File Structure**:
+- `migrate_YYYY-MM-DD_HH-MM-SS.log`: Main migration log
+- `missing_<playlist>_<timestamp>.log`: Per-playlist missing tracks
+- `errors_<timestamp>.log`: Error-only log for debugging
+
+**Logging Levels**:
+```python
+# Main migration events
+logger.info("🎵 Starting migration of playlist: {name}")
+logger.info("✅ Successfully created Spotify playlist: {id}")
+logger.warning("⚠️ Could not find match for track: {title} by {artist}")
+logger.error("❌ Failed to upload cover art: {error}")
+
+# Detailed debug information
+logger.debug("🔍 Searching Spotify for: {search_query}")
+logger.debug("📊 Match confidence score: {score:.2f}")
+```
+
+**Missing Tracks Log Format**:
+```json
+{
+  "playlist_name": "My Awesome Playlist",
+  "anghami_playlist_url": "https://anghami.com/playlist/123",
+  "spotify_playlist_id": "3cEYpjA9oz9GiPac4AsH4n",
+  "missing_tracks": [
+    {
+      "title": "Rare Song",
+      "artists": ["Unknown Artist"],
+      "album": "Limited Edition",
+      "duration": 245,
+      "search_attempts": [
+        {"query": "track:\"Rare Song\" artist:\"Unknown Artist\"", "results": 0},
+        {"query": "Rare Song Unknown Artist", "results": 3, "best_match_score": 0.45}
+      ],
+      "anghami_url": "https://anghami.com/track/456"
+    }
+  ]
+}
+```
+
+**Deliverables**:
+- `logging_config.py`: Structured logging setup
+- `missing_tracks_logger.py`: Missing track logging
+- `log_analyzer.py`: Log analysis tools
+
+**Success Criteria**:
+- [ ] Comprehensive migration logs
+- [ ] Detailed missing track information
+- [ ] Searchable log format
+- [ ] Performance metrics logged
+- [ ] Error categorization and counting
+
+---
+
+### Phase 7: Migration Orchestration & Resume Capability
+**Duration**: 3-4 days  
+**Priority**: High
+
+#### 7.1 Migration State Management
+**Objective**: Enable resumable migrations and progress tracking
+
+**State Persistence**:
+```python
+@dataclass
+class MigrationState:
+    session_id: str
+    anghami_profile_url: str
+    selected_playlists: List[str]
+    completed_playlists: List[str]
+    failed_playlists: List[str]
+    current_playlist: Optional[str]
+    total_tracks_migrated: int
+    total_tracks_missing: int
+    start_time: datetime
+    last_update: datetime
+
+class StateManager:
+    def save_state(self, state: MigrationState) -> None:
+        """Persist migration state to disk"""
+        
+    def load_state(self, session_id: str) -> Optional[MigrationState]:
+        """Load previous migration state"""
+        
+    def should_resume_playlist(self, playlist_id: str) -> bool:
+        """Check if playlist migration was completed"""
+```
+
+**Resume Logic**:
+- Detect incomplete migrations on startup
+- Offer to resume or start fresh
+- Skip completed playlists
+- Retry failed playlists with user confirmation
+
+**Deliverables**:
+- `migration_orchestrator.py`: Main migration coordinator
+- `state_manager.py`: State persistence
+- `resume_handler.py`: Resume logic
+- `progress_tracker.py`: Real-time progress tracking
+
+**Success Criteria**:
+- [ ] Save migration state after each playlist
+- [ ] Resume from interruption points
+- [ ] Skip completed playlists correctly
+- [ ] Handle partial playlist migrations
+- [ ] Clear progress indicators
+
+---
+
+### Phase 8: Final Integration & User Experience
+**Duration**: 2-3 days  
+**Priority**: Medium
+
+#### 8.1 Complete Migration Summary
+**Objective**: Provide comprehensive migration results and statistics
+
+**Summary Report Format**:
+```
+🎉 Migration Complete!
+
+📊 Summary Statistics:
+┌─────────────────────────────────┬─────────┐
+│ Metric                          │ Count   │
+├─────────────────────────────────┼─────────┤
+│ Playlists Selected              │ 15      │
+│ Playlists Successfully Migrated │ 14      │
+│ Playlists Failed                │ 1       │
+│ Total Tracks Attempted          │ 847     │
+│ Tracks Successfully Added       │ 763     │
+│ Tracks Missing from Spotify     │ 84      │
+│ Overall Success Rate            │ 90.1%   │
+└─────────────────────────────────┴─────────┘
+
+📋 Detailed Results:
+┌─────────────────────────┬────────┬─────────┬─────────┬──────────┐
+│ Playlist                │ Tracks │ Added   │ Missing │ Success  │
+├─────────────────────────┼────────┼─────────┼─────────┼──────────┤
+│ Road Trip Hits          │ 45     │ 43      │ 2       │ 95.6%    │
+│ Arabic Classics         │ 67     │ 52      │ 15      │ 77.6%    │
+│ Workout Motivation      │ 32     │ 32      │ 0       │ 100.0%   │
+└─────────────────────────┴────────┴─────────┴─────────┴──────────┘
+
+📁 Missing Tracks Logs:
+• missing_road_trip_hits_2025-01-15_14-30-15.log
+• missing_arabic_classics_2025-01-15_14-30-15.log
+
+🔗 Spotify Playlists Created:
+• Road Trip Hits: https://open.spotify.com/playlist/3cEYpjA9oz9GiPac4AsH4n
+• Arabic Classics: https://open.spotify.com/playlist/1DFixLWuPiH6KUq3ovshfk
+```
+
+**Post-Migration Actions**:
+- Generate migration report
+- Email summary (optional)
+- Export missing tracks to CSV
+- Create backup of migration data
+- Cleanup temporary files
+
+**Deliverables**:
+- `migration_reporter.py`: Summary generation
+- `report_formatter.py`: Rich formatting
+- `export_tools.py`: Data export utilities
+
+
+## 📐 **DESIGN GUIDELINES COMPLIANCE**
+
+All implementation must follow the established design guidelines:
+
+### **Color Scheme**
+- **Primary Actions**: `emerald-500/600` (Spotify green)
+- **Accents/Selection**: `fuchsia-600/700` (Anghami purple)  
+- **Backgrounds**: `slate-50-900` (neutral canvas)
+- **Status Indicators**: `sky-500` (info), `amber-500` (warning), `rose-600` (error)
+
+### **Typography**
+- **Display Headers**: `font-sans text-3xl md:text-4xl font-extrabold tracking-tight`
+- **Section Headings**: `text-xl md:text-2xl font-semibold`
+- **Body Text**: `text-base leading-relaxed`
+
+### **Components**
+- **Cards**: `rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md`
+- **Buttons**: Variant-based system (primary, secondary, ghost, destructive)
+- **Animations**: `transition-all duration-300 ease-in-out` with framer-motion
+
+---
+
+## 🔧 **TECHNICAL IMPLEMENTATION DETAILS**
+
+### **Database Schema Updates**
+```sql
+-- Profile History
+CREATE TABLE profile_history (
+    id INTEGER PRIMARY KEY,
+    profile_url TEXT UNIQUE,
+    display_name TEXT,
+    avatar_url TEXT,
+    usage_count INTEGER DEFAULT 1,
+    last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Transfer History  
+CREATE TABLE transfer_history (
+    id INTEGER PRIMARY KEY,
+    profile_url TEXT,
+    anghami_playlist_id TEXT,
+    spotify_playlist_id TEXT,
+    transfer_date TIMESTAMP,
+    track_count INTEGER,
+    status TEXT
+);
+
+-- Sync Status
+CREATE TABLE sync_status (
+    anghami_playlist_id TEXT PRIMARY KEY,
+    last_sync TIMESTAMP,
+    track_count INTEGER,
+    checksum TEXT
+);
+```
+
+### **New API Endpoints**
+```python
+# Profile Management
+POST /profiles/validate
+GET /profiles/history
+POST /profiles/confirm
+DELETE /profiles/{profile_id}
+
+# Enhanced Playlists
+GET /playlists/{profile_url}
+GET /playlists/{playlist_id}/tracks
+GET /playlists/filter/{type}  # created, followed, all
+
+# Track Management
+GET /tracks/{playlist_id}
+POST /tracks/review
+PUT /tracks/selection
+
+# Sync Features
+GET /sync/history
+GET /sync/status/{playlist_id}
+POST /sync/incremental
+```
+
+### **Component Architecture**
+```
+src/
+├── screens/
+│   ├── ProfileInputScreen.tsx      # New: Profile input and validation
+│   ├── ProfileConfirmScreen.tsx    # New: Profile confirmation with real data
+│   ├── PlaylistSelectScreen.tsx    # Enhanced: With filtering and real data
+│   ├── TrackReviewScreen.tsx       # New: Individual track selection/review
+│   ├── SyncManagementScreen.tsx    # New: Transfer history and sync options
+│   └── MigrationScreen.tsx         # Enhanced: With better progress tracking
+├── components/
+│   ├── ProfileCard.tsx             # New: Profile display component
+│   ├── PlaylistCard.tsx            # Enhanced: With track expansion
+│   ├── TrackList.tsx               # New: Track display and selection
+│   ├── SyncStatus.tsx              # New: Sync indicators and controls
+│   └── NavigationBreadcrumb.tsx    # New: Step navigation
+```
+
+---
+
+## ✅ **SUCCESS CRITERIA & VALIDATION**
+
+### **Phase A Completion Checklist**
+- [ ] Profile URL input works with real Anghami profiles
+- [ ] Profile history stores and displays last 10 profiles
+- [ ] Real profile data (avatar, name, followers) displays correctly
+- [ ] No hardcoded user information anywhere
+
+### **Phase B Completion Checklist**  
+- [ ] Back navigation works from any step
+- [ ] Breadcrumb navigation allows step jumping
+- [ ] State preservation when navigating backwards
+- [ ] Step modification support implemented
+
+### **Phase C Completion Checklist**
+- [ ] Real Anghami playlists load dynamically
+- [ ] Created vs followed playlist filtering works
+- [ ] Real cover art and metadata displays
+- [ ] Playlist type indicators visible
+
+### **Phase D Completion Checklist**
+- [ ] Individual tracks visible in playlist cards
+- [ ] Track selection/deselection functional
+- [ ] Track matching confidence scores display
+- [ ] Manual track review interface works
+
+### **Phase E Completion Checklist**
+- [ ] Transfer history tracks completed migrations
+- [ ] Incremental sync detects playlist changes
+- [ ] Sync status indicators update correctly
+- [ ] Conflict resolution handles edge cases
+
+### **Phase F Completion Checklist**
+- [ ] Real-world testing with test profile passes
+- [ ] All error handling scenarios covered
+- [ ] Performance acceptable with large playlists
+- [ ] Production deployment ready
+
+---
+
+## 🚀 **IMPLEMENTATION METHODOLOGY**
+
+### **Working Principles**
+1. **Complete One Phase Before Next**: Never move to next phase until current is 100% complete
+2. **Test Thoroughly**: Each phase requires comprehensive testing
+3. **Document Everything**: Update this plan with progress and decisions
+4. **Real Data Only**: No hardcoded test data in final implementation
+5. **Production Quality**: Every component must be production-ready
+
+### **Phase Transition Criteria**
+- All checklist items completed ✅
+- Comprehensive testing passed ✅
+- Documentation updated ✅
+- User acceptance validation ✅
+- Performance benchmarks met ✅
+
+### **Risk Mitigation**
+- **Backup Strategy**: Maintain working version at each phase completion
+- **Rollback Plan**: Ability to revert to previous working state
+- **Error Handling**: Graceful degradation for all failure scenarios
+- **Performance Monitoring**: Track metrics throughout implementation
+
+---
+
+## 📞 **NEXT STEPS & COORDINATION**
+
+### **Immediate Actions Required**
+1. **Plan Approval**: Confirm this roadmap before implementation
+2. **Phase Selection**: Choose starting phase (recommend Phase A)
+3. **Resource Allocation**: Dedicated development time per phase
+4. **Testing Strategy**: Real profile access for validation
+
+### **Communication Protocol**
+- **Phase Start**: Confirm phase objectives and timeline
+- **Daily Updates**: Progress reporting and blocker identification  
+- **Phase Completion**: Comprehensive review and sign-off
+- **Phase Transition**: Plan review and next phase preparation
+
+---
+
+**📋 Plan Status**: Ready for Approval  
+**📅 Created**: January 2025  
+**🔄 Last Updated**: Phase 3.5 Initial Planning  
+**👤 Implementation Lead**: AI Development Agent

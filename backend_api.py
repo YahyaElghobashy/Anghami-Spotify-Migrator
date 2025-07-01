@@ -14,7 +14,8 @@ import secrets
 import base64
 import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+from enum import Enum
 from urllib.parse import urlparse
 from cryptography.fernet import Fernet
 from pathlib import Path
@@ -22,6 +23,7 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, HttpUrl
 
 # Import existing extractors (removed unused imports)
@@ -32,9 +34,16 @@ from pydantic import BaseModel, HttpUrl
 import sys
 sys.path.append(str(Path(__file__).parent / "src" / "extractors"))
 from anghami_profile_extractor import AnghamiProfileExtractor
+from anghami_user_playlist_discoverer import AnghamiUserPlaylistDiscoverer
+from spotify_playlist_extractor import SpotifyPlaylistExtractor
 
 # Import for Spotify API
 import requests
+from urllib.parse import urlencode
+
+# Import Spotify models
+sys.path.append(str(Path(__file__).parent / "src" / "models"))
+from spotify_models import SpotifyPlaylist, SpotifyTrack, SpotifyUserPlaylists
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -329,7 +338,25 @@ current_profile: Optional[ProfileData] = None
 class SpotifyVerificationRequest(BaseModel):
     user_id: str
 
-class SpotifyUserProfile(BaseModel):
+class SpotifyTokens(BaseModel):
+    access_token: str
+    refresh_token: str
+    expires_at: str
+    scope: str
+
+class SpotifyOAuthRequest(BaseModel):
+    user_id: str
+    redirect_uri: str = "http://127.0.0.1:8888/callback"
+
+class SpotifyRecentlyPlayed(BaseModel):
+    track_name: str
+    artist_name: str
+    album_name: str
+    played_at: str
+    track_uri: str
+    external_url: str
+
+class SpotifyFullProfile(BaseModel):
     spotify_id: str
     display_name: str
     email: Optional[str] = None
@@ -338,6 +365,13 @@ class SpotifyUserProfile(BaseModel):
     country: Optional[str] = None
     subscription_type: Optional[str] = None
     verified: bool = False
+    # Enhanced data
+    total_public_playlists: Optional[int] = None
+    total_following: Optional[int] = None
+    recently_played: Optional[List[SpotifyRecentlyPlayed]] = None
+    connection_status: str = "active"  # active, expired, invalid
+    last_activity: Optional[str] = None
+    oauth_scopes: Optional[List[str]] = None
 
 class VerifiedUserSession(BaseModel):
     user_id: str
@@ -347,7 +381,7 @@ class VerifiedUserSession(BaseModel):
     created_at: str
     # New verification fields
     spotify_verified: bool = False
-    spotify_profile: Optional[SpotifyUserProfile] = None
+    spotify_profile: Optional[SpotifyFullProfile] = None
     anghami_profile: Optional[ProfileData] = None
 
 # Utility functions
@@ -602,94 +636,508 @@ async def handle_auth_callback(data: dict):
 
 @app.get("/playlists")
 async def get_playlists():
-    """Get user's Anghami playlists"""
+    """Get user's real Anghami playlists using playlist discoverer"""
     global current_profile
     
     if not current_profile or not current_profile.is_valid:
         raise HTTPException(status_code=401, detail="No valid profile selected")
     
-    # TODO: Replace with real playlist extraction from current_profile
-    # For now, return sample data but indicate it's from the selected profile
-    sample_playlists = [
-        AnghamiPlaylist(
-            id="267851779",
-            name=f"Mixtape 💿 🔥 - {current_profile.display_name}",
-            trackCount=30,
-            duration="2h 15m",
-            description="Arabic and English hits mix - From your Anghami profile",
-            tracks=[
-                AnghamiTrack(
-                    id="1",
-                    title="اصحالي يابرنس",
-                    artist="موسى",
-                    album="Latest Hits",
-                    duration="3:45",
-                    confidence=0.85
-                ),
-                AnghamiTrack(
-                    id="2", 
-                    title="White Ferrari",
-                    artist="Frank Ocean",
-                    album="Blonde",
-                    duration="4:09",
-                    confidence=1.0
-                ),
-                AnghamiTrack(
-                    id="3",
-                    title="God's Plan", 
-                    artist="Drake",
-                    album="Scorpion",
-                    duration="3:19",
-                    confidence=1.0
-                )
-            ]
-        ),
-        AnghamiPlaylist(
-            id="276644689",
-            name=f"Arabic Classics - {current_profile.display_name}",
-            trackCount=45,
-            duration="3h 12m",
-            description="Timeless Arabic music collection - From your Anghami profile",
+    try:
+        logger.info(f"🎵 Extracting real playlists for profile: {current_profile.display_name}")
+        
+        # Use the playlist discoverer to get real playlists
+        discoverer = AnghamiUserPlaylistDiscoverer()
+        user_playlists = await discoverer.discover_user_playlists(current_profile.profile_url)
+        
+        # Convert discovered playlists to API format
+        api_playlists = []
+        
+        # Add created playlists
+        for playlist in user_playlists.created_playlists:
+            api_playlist = AnghamiPlaylist(
+                id=playlist.id,
+                name=f"🎵 {playlist.name}",  # Add created indicator
+                trackCount=0,  # Will be filled when individual playlist is requested
+                duration="Unknown",
+                description=f"Created by {current_profile.display_name}. {playlist.description}".strip(),
+                imageUrl=playlist.cover_art_url,
+                tracks=[]
+            )
+            api_playlists.append(api_playlist)
+        
+        # Add followed playlists
+        for playlist in user_playlists.followed_playlists:
+            api_playlist = AnghamiPlaylist(
+                id=playlist.id,
+                name=f"➕ {playlist.name}",  # Add followed indicator
+                trackCount=0,  # Will be filled when individual playlist is requested
+                duration="Unknown",
+                description=f"Followed by {current_profile.display_name}. {playlist.description}".strip(),
+                imageUrl=playlist.cover_art_url,
             tracks=[]
-        ),
+            )
+            api_playlists.append(api_playlist)
+        
+        logger.info(f"✅ Returning {len(api_playlists)} real playlists ({user_playlists.total_created} created, {user_playlists.total_followed} followed)")
+        return api_playlists
+        
+    except Exception as e:
+        logger.error(f"❌ Error extracting playlists: {e}")
+        # Fallback to indicate error
+        return [
         AnghamiPlaylist(
-            id="278123456",
-            name=f"Workout Motivation - {current_profile.display_name}",
-            trackCount=28,
-            duration="1h 58m",
-            description="High-energy tracks for gym sessions - From your Anghami profile",
-            tracks=[]
-        ),
-        AnghamiPlaylist(
-            id="279987654",
-            name=f"Chill Vibes - {current_profile.display_name}",
-            trackCount=22,
-            duration="1h 35m",
-            description="Relaxing tunes for unwinding - From your Anghami profile",
+                id="error",
+                name=f"❌ Error Loading Playlists",
+                trackCount=0,
+                duration="N/A",
+                description=f"Failed to load playlists from {current_profile.display_name}: {str(e)}",
+                imageUrl=None,
             tracks=[]
         )
     ]
-    
-    logger.info(f"Returning {len(sample_playlists)} playlists for profile: {current_profile.display_name}")
-    return sample_playlists
 
 @app.get("/playlists/{playlist_id}")
 async def get_playlist_details(playlist_id: str):
-    """Get detailed information about a specific playlist"""
+    """Get detailed information about a specific playlist with tracks"""
     if not current_profile or not current_profile.is_valid:
         raise HTTPException(status_code=401, detail="No valid profile selected")
     
-    # TODO: Replace with real playlist extraction
-    sample_playlists = await get_playlists()
-    playlist = next((p for p in sample_playlists if p.id == playlist_id), None)
-    
-    if not playlist:
+    try:
+        # First, find the playlist in our discovered playlists
+        all_playlists = await get_playlists()
+        playlist_summary = next((p for p in all_playlists if p.id == playlist_id), None)
+        
+        if not playlist_summary:
         raise HTTPException(status_code=404, detail="Playlist not found")
     
-    logger.info(f"Returning details for playlist: {playlist.name}")
-    return playlist
+        # If it's an error playlist, return it as-is
+        if playlist_id == "error":
+            return playlist_summary
+        
+        logger.info(f"🎵 Extracting detailed tracks for playlist: {playlist_summary.name}")
+        
+        # Use the direct extractor to get full playlist details with tracks
+        from anghami_direct_extractor import AnghamiDirectExtractor
+        
+        direct_extractor = AnghamiDirectExtractor()
+        playlist_url = f"https://play.anghami.com/playlist/{playlist_id}"
+        
+        # Extract full playlist data including tracks
+        full_playlist = await direct_extractor.extract_playlist(playlist_url)
+        
+        # Convert to API format
+        api_tracks = []
+        for track in full_playlist.tracks:
+            api_track = AnghamiTrack(
+                id=str(len(api_tracks) + 1),
+                title=track.title,
+                artist=track.primary_artist,
+                album=getattr(track, 'album', 'Unknown Album'),
+                duration=getattr(track, 'duration', 'Unknown'),
+                confidence=1.0
+            )
+            api_tracks.append(api_track)
+        
+        # Create detailed playlist response
+        detailed_playlist = AnghamiPlaylist(
+            id=playlist_id,
+            name=playlist_summary.name,
+            trackCount=len(api_tracks),
+            duration=getattr(full_playlist, 'duration', f"{len(api_tracks)} tracks"),
+            description=playlist_summary.description,
+            imageUrl=playlist_summary.imageUrl,
+            tracks=api_tracks
+        )
+        
+        logger.info(f"✅ Returning detailed playlist with {len(api_tracks)} tracks")
+        return detailed_playlist
+        
+    except Exception as e:
+        logger.error(f"❌ Error extracting playlist details: {e}")
+        
+        # Return basic playlist info with error indication
+        return AnghamiPlaylist(
+            id=playlist_id,
+            name=f"❌ Error Loading Tracks",
+            trackCount=0,
+            duration="N/A",
+            description=f"Failed to load tracks: {str(e)}",
+            imageUrl=None,
+            tracks=[]
+        )
 
-# ... rest of existing endpoints remain the same
+# New C.1 API Endpoints for Enhanced Playlist Access
+
+@app.get("/anghami/playlists")
+async def get_anghami_playlists(
+    profile_url: str = None,
+    type: str = "all",  # all, created, followed
+    page: int = 1,
+    limit: int = 20
+):
+    """Enhanced playlist endpoint with filtering and pagination"""
+    # Use current profile if no profile_url provided
+    target_profile_url = profile_url or (current_profile.profile_url if current_profile else None)
+    
+    if not target_profile_url:
+        raise HTTPException(status_code=400, detail="No profile URL provided and no current profile selected")
+    
+    try:
+        logger.info(f"🎵 Getting Anghami playlists: type={type}, page={page}, limit={limit}")
+        
+        discoverer = AnghamiUserPlaylistDiscoverer()
+        user_playlists = await discoverer.discover_user_playlists(target_profile_url)
+        
+        # Filter by type
+        filtered_playlists = []
+        if type in ["all", "created"]:
+            filtered_playlists.extend(user_playlists.created_playlists)
+        if type in ["all", "followed"]:
+            filtered_playlists.extend(user_playlists.followed_playlists)
+        
+        # Apply pagination
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        paginated_playlists = filtered_playlists[start_idx:end_idx]
+        
+        # Convert to API format
+        api_playlists = []
+        for playlist in paginated_playlists:
+            indicator = "🎵" if playlist.playlist_type == "created" else "➕"
+            api_playlist = {
+                "id": playlist.id,
+                "name": f"{indicator} {playlist.name}",
+                "type": playlist.playlist_type,
+                "url": playlist.url,
+                "description": playlist.description,
+                "cover_art_url": playlist.cover_art_url
+            }
+            api_playlists.append(api_playlist)
+        
+        return {
+            "playlists": api_playlists,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": len(filtered_playlists),
+                "total_pages": (len(filtered_playlists) + limit - 1) // limit,
+                "has_next": end_idx < len(filtered_playlists),
+                "has_prev": page > 1
+            },
+            "summary": {
+                "total_created": user_playlists.total_created,
+                "total_followed": user_playlists.total_followed,
+                "total_all": user_playlists.total_created + user_playlists.total_followed,
+                "filter_applied": type
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting Anghami playlists: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get playlists: {str(e)}")
+
+@app.get("/anghami/playlists/summary")
+async def get_anghami_playlists_summary(profile_url: str = None):
+    """Get summary of playlist counts by type"""
+    target_profile_url = profile_url or (current_profile.profile_url if current_profile else None)
+    
+    if not target_profile_url:
+        raise HTTPException(status_code=400, detail="No profile URL provided and no current profile selected")
+    
+    try:
+        logger.info(f"📊 Getting playlist summary for profile")
+        
+        discoverer = AnghamiUserPlaylistDiscoverer()
+        user_playlists = await discoverer.discover_user_playlists(target_profile_url)
+        
+        return {
+            "profile_url": target_profile_url,
+            "user_id": user_playlists.user_id,
+            "created_playlists": user_playlists.total_created,
+            "followed_playlists": user_playlists.total_followed,
+            "total_playlists": user_playlists.total_created + user_playlists.total_followed,
+            "extraction_timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting playlist summary: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get playlist summary: {str(e)}")
+
+# C.2 - Spotify Playlist Retrieval System API Endpoints
+
+@app.get("/spotify/playlists/{user_id}")
+async def get_spotify_playlists(
+    user_id: str,
+    type: str = "all",  # all, owned, followed
+    include_tracks: bool = False,
+    page: int = 1,
+    limit: int = 20
+):
+    """Get user's Spotify playlists with filtering and pagination"""
+    try:
+        logger.info(f"🎵 Getting Spotify playlists for user: {user_id}, type: {type}")
+        
+        # Get user's Spotify access token from database
+        access_token = await get_user_spotify_access_token(user_id)
+        if not access_token:
+            raise HTTPException(status_code=401, detail="Spotify access token not found. Please re-authenticate.")
+        
+        # Create extractor and set token
+        extractor = SpotifyPlaylistExtractor()
+        extractor.set_access_token(access_token)
+        
+        # Extract playlists (always use "me" for authenticated user)
+        user_playlists = await extractor.extract_user_playlists(
+            user_id="me",
+            include_followed=(type in ["all", "followed"]),
+            include_tracks=include_tracks
+        )
+        
+        # Filter by type
+        filtered_playlists = []
+        if type in ["all", "owned"]:
+            filtered_playlists.extend(user_playlists.owned_playlists)
+        if type in ["all", "followed"]:
+            filtered_playlists.extend(user_playlists.followed_playlists)
+        
+        # Apply pagination
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        paginated_playlists = filtered_playlists[start_idx:end_idx]
+        
+        # Convert to API format
+        api_playlists = []
+        for playlist in paginated_playlists:
+            indicator = "🎵" if playlist.is_owned else "➕"
+            api_playlist = {
+                "id": playlist.id,
+                "name": f"{indicator} {playlist.name}",
+                "type": "owned" if playlist.is_owned else "followed",
+                "owner_name": playlist.owner_name,
+                "track_count": playlist.track_count,
+                "is_public": playlist.is_public,
+                "is_collaborative": playlist.is_collaborative,
+                "description": playlist.description,
+                "cover_art_url": playlist.cover_art_url,
+                "external_url": playlist.external_url,
+                "total_duration": playlist.total_duration_formatted,
+                "follower_count": playlist.follower_count
+            }
+            
+            # Include tracks if requested and available
+            if include_tracks and playlist.tracks:
+                api_playlist["tracks"] = [
+                    {
+                        "id": track.id,
+                        "title": track.title,
+                        "artists": track.artists,
+                        "album": track.album,
+                        "duration": track.duration_formatted,
+                        "external_url": track.external_url,
+                        "added_at": track.added_at
+                    }
+                    for track in playlist.tracks
+                ]
+            
+            api_playlists.append(api_playlist)
+        
+        return {
+            "playlists": api_playlists,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": len(filtered_playlists),
+                "total_pages": (len(filtered_playlists) + limit - 1) // limit,
+                "has_next": end_idx < len(filtered_playlists),
+                "has_prev": page > 1
+            },
+            "summary": {
+                "total_owned": user_playlists.total_owned,
+                "total_followed": user_playlists.total_followed,
+                "total_all": user_playlists.total_playlists,
+                "filter_applied": type,
+                "user_display_name": user_playlists.display_name
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting Spotify playlists: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get Spotify playlists: {str(e)}")
+
+@app.get("/spotify/playlists/{playlist_id}/details")
+async def get_spotify_playlist_details(playlist_id: str, user_id: str = None):
+    """Get detailed information about a specific Spotify playlist"""
+    try:
+        logger.info(f"🎵 Getting Spotify playlist details: {playlist_id}")
+        
+        # Get user's Spotify access token
+        if not user_id:
+            # Try to get from current session or default to a stored token
+            user_id = "current"  # This should be replaced with actual user context
+        
+        access_token = await get_user_spotify_access_token(user_id)
+        if not access_token:
+            raise HTTPException(status_code=401, detail="Spotify access token not found. Please re-authenticate.")
+        
+        # Create extractor and get playlist details
+        extractor = SpotifyPlaylistExtractor()
+        extractor.set_access_token(access_token)
+        
+        playlist = await extractor.extract_playlist_details(playlist_id, include_tracks=True)
+        
+        # Convert to API format
+        return {
+            "id": playlist.id,
+            "name": playlist.name,
+            "description": playlist.description,
+            "owner_id": playlist.owner_id,
+            "owner_name": playlist.owner_name,
+            "is_owned": playlist.is_owned,
+            "is_followed": playlist.is_followed,
+            "is_public": playlist.is_public,
+            "is_collaborative": playlist.is_collaborative,
+            "track_count": playlist.track_count,
+            "total_duration": playlist.total_duration_formatted,
+            "follower_count": playlist.follower_count,
+            "cover_art_url": playlist.cover_art_url,
+            "external_url": playlist.external_url,
+            "tracks": [
+                {
+                    "id": track.id,
+                    "title": track.title,
+                    "artists": track.artists,
+                    "album": track.album,
+                    "duration": track.duration_formatted,
+                    "duration_ms": track.duration_ms,
+                    "preview_url": track.preview_url,
+                    "external_url": track.external_url,
+                    "explicit": track.explicit,
+                    "popularity": track.popularity,
+                    "added_at": track.added_at,
+                    "added_by": track.added_by
+                }
+                for track in playlist.tracks
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting Spotify playlist details: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get playlist details: {str(e)}")
+
+@app.get("/spotify/playlists/{playlist_id}/tracks")
+async def get_spotify_playlist_tracks(playlist_id: str, user_id: str = None):
+    """Get tracks from a specific Spotify playlist"""
+    try:
+        logger.info(f"🎵 Getting tracks for Spotify playlist: {playlist_id}")
+        
+        # Get user's Spotify access token
+        if not user_id:
+            user_id = "current"
+        
+        access_token = await get_user_spotify_access_token(user_id)
+        if not access_token:
+            raise HTTPException(status_code=401, detail="Spotify access token not found.")
+        
+        # Create extractor and get tracks
+        extractor = SpotifyPlaylistExtractor()
+        extractor.set_access_token(access_token)
+        
+        tracks = await extractor._get_playlist_tracks(playlist_id)
+        
+        return {
+            "playlist_id": playlist_id,
+            "track_count": len(tracks),
+            "tracks": [
+                {
+                    "id": track.id,
+                    "title": track.title,
+                    "artists": track.artists,
+                    "album": track.album,
+                    "duration": track.duration_formatted,
+                    "external_url": track.external_url,
+                    "added_at": track.added_at
+                }
+                for track in tracks
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting Spotify playlist tracks: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get playlist tracks: {str(e)}")
+
+@app.post("/spotify/playlists/batch-details")
+async def get_spotify_playlists_batch_details(request: dict):
+    """Get detailed information for multiple Spotify playlists"""
+    playlist_ids = request.get("playlist_ids", [])
+    user_id = request.get("user_id", "current")
+    include_tracks = request.get("include_tracks", False)
+    
+    try:
+        logger.info(f"🎵 Getting batch details for {len(playlist_ids)} Spotify playlists")
+        
+        access_token = await get_user_spotify_access_token(user_id)
+        if not access_token:
+            raise HTTPException(status_code=401, detail="Spotify access token not found.")
+        
+        extractor = SpotifyPlaylistExtractor()
+        extractor.set_access_token(access_token)
+        
+        playlists = []
+        for playlist_id in playlist_ids:
+            try:
+                playlist = await extractor.extract_playlist_details(playlist_id, include_tracks=include_tracks)
+                playlists.append(playlist.to_dict())
+            except Exception as e:
+                logger.warning(f"Failed to get details for playlist {playlist_id}: {e}")
+                continue
+        
+        return {
+            "requested_count": len(playlist_ids),
+            "retrieved_count": len(playlists),
+            "playlists": playlists
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting batch playlist details: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get batch playlist details: {str(e)}")
+
+async def get_user_spotify_access_token(user_id: str) -> Optional[str]:
+    """Helper function to get user's Spotify access token from database"""
+    try:
+        conn = sqlite3.connect('data/user_credentials.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT spotify_access_token, spotify_token_expires_at, spotify_refresh_token
+            FROM users WHERE user_id = ?
+        ''', (user_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result or not result[0]:
+            logger.warning(f"No Spotify access token found for user {user_id}")
+            return None
+        
+        access_token, expires_at, refresh_token = result
+        
+        # Check if token is expired (simplified check)
+        if expires_at:
+            try:
+                from datetime import datetime
+                expires_datetime = datetime.fromisoformat(expires_at)
+                if datetime.now() >= expires_datetime:
+                    logger.info(f"Spotify token expired for user {user_id}, refresh needed")
+                    # TODO: Implement token refresh logic
+                    return None
+            except:
+                pass
+        
+        return access_token
+        
+    except Exception as e:
+        logger.error(f"Error getting Spotify access token: {e}")
+        return None
 
 @app.post("/migrate")
 async def start_migration(request: MigrationRequest):
@@ -844,68 +1292,73 @@ async def simulate_migration(session_id: str, playlist_ids: List[str]):
 
 # User credential management functions
 def init_user_database():
-    """Initialize user credentials database (now without encryption keys)"""
-    conn = sqlite3.connect('data/user_credentials.db')
-    cursor = conn.cursor()
-    
-    # Create users table without encryption_key column for better security
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            user_id TEXT PRIMARY KEY,
-            username TEXT,
-            display_name TEXT,
-            spotify_client_id TEXT NOT NULL,
-            spotify_client_secret TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_used TIMESTAMP,
-            spotify_verified BOOLEAN DEFAULT FALSE,
-            spotify_profile_data TEXT,
-            last_verification TIMESTAMP
-        )
-    ''')
-    
-    # Check current table structure and migrate if needed
-    cursor.execute("PRAGMA table_info(users)")
-    columns = {column[1]: column for column in cursor.fetchall()}
-    
-    # Handle migration from old column names
-    if 'encrypted_spotify_secret' in columns and 'spotify_client_secret' not in columns:
-        logger.info("Migrating database: renaming encrypted_spotify_secret to spotify_client_secret")
-        cursor.execute('ALTER TABLE users RENAME COLUMN encrypted_spotify_secret TO spotify_client_secret')
-    
-    # Add missing columns
-    if 'username' not in columns:
-        cursor.execute('ALTER TABLE users ADD COLUMN username TEXT')
-    if 'spotify_verified' not in columns:
-        cursor.execute('ALTER TABLE users ADD COLUMN spotify_verified BOOLEAN DEFAULT FALSE')
-    if 'spotify_profile_data' not in columns:
-        cursor.execute('ALTER TABLE users ADD COLUMN spotify_profile_data TEXT')
-    if 'last_verification' not in columns:
-        cursor.execute('ALTER TABLE users ADD COLUMN last_verification TIMESTAMP')
-    
-    # Remove old is_active column if it exists (we don't use it anymore)
-    if 'is_active' in columns:
-        # SQLite doesn't support DROP COLUMN directly, so we'll ignore it
-        logger.info("Note: is_active column still exists but is not used")
-    
-    # Note: encryption_key column may exist from old schema, but we ignore it now
-    if 'encryption_key' in columns:
-        logger.info("Note: Found old encryption_key column - now using secure vault instead")
-    
-    # Create user sessions table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_sessions (
-            session_token TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            expires_at TIMESTAMP NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users (user_id)
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
-    logger.info("User database initialized with secure key vault architecture")
+    """Initialize the user credential database with proper schema"""
+    try:
+        ensure_data_directory()
+        
+        conn = sqlite3.connect('data/user_credentials.db')
+        cursor = conn.cursor()
+        
+        # Create users table with all required fields
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                user_id TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                spotify_client_id TEXT NOT NULL,
+                spotify_client_secret TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                last_used TEXT,
+                
+                -- Enhanced Spotify verification fields
+                spotify_verified BOOLEAN DEFAULT FALSE,
+                spotify_profile_data TEXT,
+                last_verification TEXT,
+                
+                -- OAuth token fields
+                spotify_access_token TEXT,
+                spotify_refresh_token TEXT,
+                spotify_token_expires_at TEXT,
+                spotify_token_scope TEXT
+            )
+        ''')
+        
+        # Create user sessions table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                session_token TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                expires_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (user_id)
+            )
+        ''')
+        
+        # Check if we need to add new columns to existing tables
+        cursor.execute("PRAGMA table_info(users)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        # Add missing OAuth token columns if they don't exist
+        new_columns = [
+            ("spotify_access_token", "TEXT"),
+            ("spotify_refresh_token", "TEXT"), 
+            ("spotify_token_expires_at", "TEXT"),
+            ("spotify_token_scope", "TEXT")
+        ]
+        
+        for column_name, column_type in new_columns:
+            if column_name not in columns:
+                cursor.execute(f'ALTER TABLE users ADD COLUMN {column_name} {column_type}')
+                logger.info(f"Added new column '{column_name}' to users table")
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info("✅ User database initialized successfully with OAuth support")
+        
+    except Exception as e:
+        logger.error(f"❌ Error initializing user database: {e}")
+        raise
 
 def encrypt_credential(credential: str) -> tuple[str, str]:
     """Encrypt a credential and return (encrypted_data, encryption_key)"""
@@ -1197,21 +1650,33 @@ async def list_users():
         cursor = conn.cursor()
         
         cursor.execute('''
-            SELECT user_id, display_name, spotify_client_id, created_at, last_used
+            SELECT user_id, display_name, spotify_client_id, created_at, last_used,
+                   spotify_verified, spotify_profile_data, last_verification
             FROM users
             ORDER BY last_used DESC, created_at DESC
         ''')
         
         users = []
         for row in cursor.fetchall():
-            users.append(UserCredentials(
-                user_id=row[0],
-                display_name=row[1],
-                spotify_client_id=row[2],
-                has_credentials=True,
-                created_at=row[3],
-                last_used=row[4]
-            ))
+            # Parse Spotify profile data if available
+            spotify_profile = None
+            if row[6]:  # spotify_profile_data
+                try:
+                    spotify_profile = json.loads(row[6])
+                except:
+                    spotify_profile = None
+            
+            users.append({
+                "user_id": row[0],
+                "display_name": row[1],
+                "spotify_client_id": row[2],
+                "has_credentials": True,
+                "created_at": row[3],
+                "last_used": row[4],
+                "spotify_verified": bool(row[5]) if row[5] is not None else False,
+                "spotify_profile": spotify_profile,
+                "last_verification": row[7]
+            })
         
         conn.close()
         
@@ -1221,7 +1686,279 @@ async def list_users():
         logger.error(f"Error listing users: {e}")
         return {"users": []}
 
-async def verify_spotify_credentials(client_id: str, client_secret: str) -> tuple[bool, Optional[SpotifyUserProfile], Optional[str]]:
+# OAuth Callback Handler
+@app.get("/oauth/callback")
+async def oauth_callback_handler(code: str = None, state: str = None, error: str = None):
+    """Handle OAuth callback from Spotify"""
+    if error:
+        return HTMLResponse(f"""
+        <html>
+        <head><title>Authorization Failed</title></head>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h1 style="color: #dc2626;">Authorization Failed</h1>
+            <p>Error: {error}</p>
+            <p>Please close this window and try again.</p>
+            <script>setTimeout(() => window.close(), 3000);</script>
+        </body>
+        </html>
+        """)
+    
+    if not code or not state:
+        return HTMLResponse("""
+        <html>
+        <head><title>Invalid Request</title></head>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h1 style="color: #dc2626;">Invalid Request</h1>
+            <p>Missing authorization code or state parameter.</p>
+            <p>Please close this window and try again.</p>
+            <script>setTimeout(() => window.close(), 3000);</script>
+        </body>
+        </html>
+        """)
+    
+    try:
+        # Process the OAuth callback
+        result = await handle_spotify_oauth_callback({
+            "code": code,
+            "state": state,
+            "redirect_uri": "http://127.0.0.1:8888/callback"
+        })
+        
+        if result.get("success") and result.get("verified"):
+            profile = result.get("spotify_profile", {})
+            display_name = profile.get("display_name", "User")
+            
+            return HTMLResponse(f"""
+            <html>
+            <head><title>Authorization Successful</title></head>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <div style="max-width: 500px; margin: 0 auto;">
+                    <h1 style="color: #059669;">✅ Authorization Successful!</h1>
+                    <p><strong>Welcome, {display_name}!</strong></p>
+                    <p>Your Spotify account has been verified and connected successfully.</p>
+                    <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="color: #059669; margin-top: 0;">Verification Complete</h3>
+                        <p style="margin: 0;">✓ Real-time Spotify connection established</p>
+                        <p style="margin: 0;">✓ Profile data synchronized</p>
+                        <p style="margin: 0;">✓ Ready for playlist migration</p>
+                    </div>
+                    <p style="color: #6b7280;">You can now close this window and return to the application.</p>
+                </div>
+                <script>
+                    // Auto-close after 5 seconds
+                    setTimeout(() => {{
+                        window.close();
+                    }}, 5000);
+                </script>
+            </body>
+            </html>
+            """)
+        else:
+            error_msg = result.get("error", "Unknown error occurred")
+            return HTMLResponse(f"""
+            <html>
+            <head><title>Authorization Failed</title></head>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <h1 style="color: #dc2626;">❌ Authorization Failed</h1>
+                <p>Error: {error_msg}</p>
+                <p>Please close this window and try again.</p>
+                <script>setTimeout(() => window.close(), 3000);</script>
+            </body>
+            </html>
+            """)
+            
+    except Exception as e:
+        logger.error(f"OAuth callback error: {e}")
+        return HTMLResponse(f"""
+        <html>
+        <head><title>Authorization Error</title></head>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h1 style="color: #dc2626;">❌ Authorization Error</h1>
+            <p>An unexpected error occurred: {str(e)}</p>
+            <p>Please close this window and try again.</p>
+            <script>setTimeout(() => window.close(), 3000);</script>
+        </body>
+        </html>
+        """)
+
+# OAuth Helper Functions
+async def get_spotify_oauth_url(client_id: str, redirect_uri: str, user_id: str) -> str:
+    """Generate Spotify OAuth authorization URL"""
+    try:
+        # Encode state with user_id for callback
+        state = base64.b64encode(f"{user_id}:{secrets.token_urlsafe(16)}".encode()).decode()
+        
+        params = {
+            "client_id": client_id,
+            "response_type": "code",
+            "redirect_uri": redirect_uri,
+            "scope": "user-read-private user-read-email user-read-recently-played user-top-read playlist-read-private",
+            "state": state,
+            "show_dialog": "true"  # Force user to see authorization dialog
+        }
+        
+        oauth_url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
+        return oauth_url
+        
+    except Exception as e:
+        logger.error(f"Error generating OAuth URL: {e}")
+        raise Exception(f"Failed to generate OAuth URL: {str(e)}")
+
+async def exchange_spotify_code_for_tokens(client_id: str, client_secret: str, code: str, redirect_uri: str) -> tuple[bool, Optional[SpotifyTokens], Optional[str]]:
+    """Exchange authorization code for access tokens"""
+    try:
+        auth_url = "https://accounts.spotify.com/api/token"
+        
+        # Encode credentials for basic auth
+        credentials = f"{client_id}:{client_secret}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        
+        headers = {
+            "Authorization": f"Basic {encoded_credentials}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri
+        }
+        
+        response = requests.post(auth_url, headers=headers, data=data, timeout=10)
+        
+        if response.status_code != 200:
+            logger.error(f"Token exchange failed: {response.status_code} - {response.text}")
+            return False, None, f"Token exchange failed: {response.status_code}"
+        
+        token_data = response.json()
+        
+        # Calculate expiration time
+        expires_in = token_data.get("expires_in", 3600)
+        expires_at = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
+        
+        tokens = SpotifyTokens(
+            access_token=token_data["access_token"],
+            refresh_token=token_data.get("refresh_token", ""),
+            expires_at=expires_at,
+            scope=token_data.get("scope", "")
+        )
+        
+        return True, tokens, None
+        
+    except Exception as e:
+        logger.error(f"Error exchanging code for tokens: {e}")
+        return False, None, str(e)
+
+async def get_spotify_user_profile(access_token: str) -> tuple[bool, Optional[SpotifyFullProfile], Optional[str]]:
+    """Get real Spotify user profile data"""
+    try:
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        # Get user profile
+        profile_response = requests.get(
+            "https://api.spotify.com/v1/me",
+            headers=headers,
+            timeout=10
+        )
+        
+        if profile_response.status_code != 200:
+            logger.error(f"Profile fetch failed: {profile_response.status_code}")
+            return False, None, f"Profile fetch failed: {profile_response.status_code}"
+        
+        profile_data = profile_response.json()
+        
+        # Get user's playlists count
+        playlists_response = requests.get(
+            "https://api.spotify.com/v1/me/playlists?limit=1",
+            headers=headers,
+            timeout=10
+        )
+        
+        total_playlists = 0
+        if playlists_response.status_code == 200:
+            playlists_data = playlists_response.json()
+            total_playlists = playlists_data.get("total", 0)
+        
+        # Get following count
+        following_response = requests.get(
+            "https://api.spotify.com/v1/me/following?type=artist&limit=1",
+            headers=headers,
+            timeout=10
+        )
+        
+        total_following = 0
+        if following_response.status_code == 200:
+            following_data = following_response.json()
+            total_following = following_data.get("artists", {}).get("total", 0)
+        
+        # Create profile object
+        spotify_profile = SpotifyFullProfile(
+            spotify_id=profile_data["id"],
+            display_name=profile_data["display_name"] or profile_data["id"],
+            email=profile_data.get("email"),
+            avatar_url=profile_data.get("images", [{}])[0].get("url") if profile_data.get("images") else None,
+            follower_count=profile_data.get("followers", {}).get("total", 0),
+            country=profile_data.get("country"),
+            subscription_type=profile_data.get("product", "free").title(),
+            verified=True,
+            total_public_playlists=total_playlists,
+            total_following=total_following,
+            connection_status="active",
+            last_activity=datetime.now().isoformat(),
+            oauth_scopes=["user-read-private", "user-read-email", "user-read-recently-played"]
+        )
+        
+        return True, spotify_profile, None
+        
+    except Exception as e:
+        logger.error(f"Error getting user profile: {e}")
+        return False, None, str(e)
+
+async def refresh_spotify_token(client_id: str, client_secret: str, refresh_token: str) -> tuple[bool, Optional[SpotifyTokens], Optional[str]]:
+    """Refresh Spotify access token"""
+    try:
+        auth_url = "https://accounts.spotify.com/api/token"
+        
+        # Encode credentials for basic auth
+        credentials = f"{client_id}:{client_secret}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        
+        headers = {
+            "Authorization": f"Basic {encoded_credentials}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token
+        }
+        
+        response = requests.post(auth_url, headers=headers, data=data, timeout=10)
+        
+        if response.status_code != 200:
+            logger.error(f"Token refresh failed: {response.status_code} - {response.text}")
+            return False, None, f"Token refresh failed: {response.status_code}"
+        
+        token_data = response.json()
+        
+        # Calculate expiration time
+        expires_in = token_data.get("expires_in", 3600)
+        expires_at = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
+        
+        tokens = SpotifyTokens(
+            access_token=token_data["access_token"],
+            refresh_token=token_data.get("refresh_token", refresh_token),  # Keep old refresh token if new one not provided
+            expires_at=expires_at,
+            scope=token_data.get("scope", "")
+        )
+        
+        return True, tokens, None
+        
+    except Exception as e:
+        logger.error(f"Error refreshing token: {e}")
+        return False, None, str(e)
+
+async def verify_spotify_credentials(client_id: str, client_secret: str) -> tuple[bool, Optional[SpotifyFullProfile], Optional[str]]:
     """Verify Spotify credentials and fetch user profile"""
     try:
         # Step 1: Get access token using Client Credentials flow
@@ -1269,7 +2006,7 @@ async def verify_spotify_credentials(client_id: str, client_secret: str) -> tupl
         
         if test_response.status_code == 200:
             # Credentials are valid - create a basic verified profile
-            spotify_profile = SpotifyUserProfile(
+            spotify_profile = SpotifyFullProfile(
                 spotify_id=client_id,  # Using client_id as identifier for now
                 display_name="Spotify Developer Account",
                 verified=True,
@@ -1397,6 +2134,690 @@ async def get_spotify_profile(user_id: str):
     except Exception as e:
         logger.error(f"Error fetching Spotify profile: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch profile: {str(e)}")
+
+@app.post("/spotify/oauth/start")
+async def start_spotify_oauth(request: SpotifyOAuthRequest):
+    """Start Spotify OAuth flow for real user verification"""
+    try:
+        logger.info(f"Starting Spotify OAuth for user: {request.user_id}")
+        
+        # Get user credentials
+        conn = sqlite3.connect('data/user_credentials.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT spotify_client_id, spotify_client_secret
+            FROM users WHERE user_id = ?
+        ''', (request.user_id,))
+        
+        user_data = cursor.fetchone()
+        conn.close()
+        
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        client_id, encrypted_secret = user_data
+        
+        # Generate OAuth URL
+        oauth_url = await get_spotify_oauth_url(client_id, request.redirect_uri, request.user_id)
+        
+        logger.info(f"Generated OAuth URL for user {request.user_id}")
+        return {
+            "success": True,
+            "auth_url": oauth_url,
+            "message": "OAuth flow started"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error starting OAuth: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start OAuth: {str(e)}")
+
+@app.post("/spotify/oauth/callback")
+async def handle_spotify_oauth_callback(request: dict):
+    """Handle Spotify OAuth callback and complete verification"""
+    try:
+        code = request.get("code")
+        state = request.get("state")
+        redirect_uri = request.get("redirect_uri", "http://localhost:3000/auth/callback")
+        
+        if not code or not state:
+            raise HTTPException(status_code=400, detail="Missing code or state parameter")
+        
+        # Decode state to get user_id
+        try:
+            decoded_state = base64.b64decode(state.encode()).decode()
+            user_id = decoded_state.split(":")[0]
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid state parameter")
+        
+        logger.info(f"Processing OAuth callback for user: {user_id}")
+        
+        # Get user credentials
+        conn = sqlite3.connect('data/user_credentials.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT spotify_client_id, spotify_client_secret
+            FROM users WHERE user_id = ?
+        ''', (user_id,))
+        
+        user_data = cursor.fetchone()
+        conn.close()
+        
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        client_id, encrypted_secret = user_data
+        client_secret = secure_decrypt_credential(user_id, encrypted_secret)
+        
+        # Exchange code for tokens
+        success, tokens, error = await exchange_spotify_code_for_tokens(
+            client_id, client_secret, code, redirect_uri
+        )
+        
+        if not success or not tokens:
+            logger.error(f"Token exchange failed for user {user_id}: {error}")
+            raise HTTPException(status_code=400, detail=f"Token exchange failed: {error}")
+        
+        # Get user profile with the access token
+        profile_success, spotify_profile, profile_error = await get_spotify_user_profile(tokens.access_token)
+        
+        if not profile_success or not spotify_profile:
+            logger.error(f"Profile fetch failed for user {user_id}: {profile_error}")
+            raise HTTPException(status_code=400, detail=f"Profile fetch failed: {profile_error}")
+        
+        # Store tokens and profile in database
+        conn = sqlite3.connect('data/user_credentials.db')
+        cursor = conn.cursor()
+        
+        # Update user with full verification data
+        cursor.execute('''
+            UPDATE users 
+            SET spotify_verified = ?, 
+                spotify_profile_data = ?, 
+                spotify_access_token = ?,
+                spotify_refresh_token = ?,
+                spotify_token_expires_at = ?,
+                spotify_token_scope = ?,
+                last_verification = ?
+            WHERE user_id = ?
+        ''', (
+            True, 
+            json.dumps(spotify_profile.dict()), 
+            tokens.access_token,
+            tokens.refresh_token,
+            tokens.expires_at,
+            tokens.scope,
+            datetime.now().isoformat(),
+            user_id
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"OAuth verification completed successfully for user: {user_id}")
+        return {
+            "success": True,
+            "verified": True,
+            "spotify_profile": spotify_profile,
+            "message": "Spotify account verified with OAuth!"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in OAuth callback: {e}")
+        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
+
+@app.get("/spotify/profile/{user_id}/detailed")
+async def get_detailed_spotify_profile(user_id: str):
+    """Get comprehensive Spotify profile with real-time data"""
+    try:
+        conn = sqlite3.connect('data/user_credentials.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT spotify_verified, spotify_profile_data, last_verification,
+                   spotify_access_token, spotify_refresh_token, spotify_token_expires_at,
+                   spotify_client_id, spotify_client_secret
+            FROM users WHERE user_id = ?
+        ''', (user_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        (is_verified, profile_data, last_verification, 
+         access_token, refresh_token, expires_at, client_id, encrypted_secret) = result
+        
+        if not is_verified or not profile_data:
+            return {
+                "verified": False,
+                "spotify_profile": None,
+                "last_verification": None,
+                "connection_status": "not_verified"
+            }
+        
+        # Check if token is expired and refresh if needed
+        current_time = datetime.now()
+        if expires_at:
+            token_expires = datetime.fromisoformat(expires_at)
+            if current_time >= token_expires and refresh_token:
+                # Token expired, try to refresh
+                logger.info(f"Refreshing expired token for user {user_id}")
+                
+                client_secret = secure_decrypt_credential(user_id, encrypted_secret)
+                refresh_success, new_tokens, refresh_error = await refresh_spotify_token(
+                    client_id, client_secret, refresh_token
+                )
+                
+                if refresh_success and new_tokens:
+                    # Update tokens in database
+                    conn = sqlite3.connect('data/user_credentials.db')
+                    cursor = conn.cursor()
+                    
+                    cursor.execute('''
+                        UPDATE users 
+                        SET spotify_access_token = ?, 
+                            spotify_refresh_token = ?,
+                            spotify_token_expires_at = ?
+                        WHERE user_id = ?
+                    ''', (new_tokens.access_token, new_tokens.refresh_token, 
+                          new_tokens.expires_at, user_id))
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    access_token = new_tokens.access_token
+                    logger.info(f"Token refreshed successfully for user {user_id}")
+                else:
+                    logger.warning(f"Token refresh failed for user {user_id}: {refresh_error}")
+                    # Return stored profile with expired status
+                    stored_profile = json.loads(profile_data)
+                    stored_profile["connection_status"] = "expired"
+                    return {
+                        "verified": True,
+                        "spotify_profile": stored_profile,
+                        "last_verification": last_verification,
+                        "connection_status": "token_expired"
+                    }
+        
+        # Get fresh profile data with current token
+        if access_token:
+            profile_success, fresh_profile, profile_error = await get_spotify_user_profile(access_token)
+            
+            if profile_success and fresh_profile:
+                # Update stored profile with fresh data
+                conn = sqlite3.connect('data/user_credentials.db')
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    UPDATE users 
+                    SET spotify_profile_data = ?, last_verification = ?
+                    WHERE user_id = ?
+                ''', (json.dumps(fresh_profile.dict()), datetime.now().isoformat(), user_id))
+                
+                conn.commit()
+                conn.close()
+                
+                return {
+                    "verified": True,
+                    "spotify_profile": fresh_profile,
+                    "last_verification": datetime.now().isoformat(),
+                    "connection_status": "active"
+                }
+            else:
+                logger.warning(f"Failed to get fresh profile for user {user_id}: {profile_error}")
+        
+        # Return stored profile if fresh fetch failed
+        stored_profile = json.loads(profile_data)
+        return {
+            "verified": True,
+            "spotify_profile": stored_profile,
+            "last_verification": last_verification,
+            "connection_status": "active" if access_token else "stored_data_only"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching detailed profile: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch detailed profile: {str(e)}")
+
+@app.get("/spotify/profile/{user_id}/recently-played")
+async def get_recently_played_tracks(user_id: str):
+    """Get user's recently played tracks"""
+    try:
+        conn = sqlite3.connect('data/user_credentials.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT spotify_access_token, spotify_verified
+            FROM users WHERE user_id = ?
+        ''', (user_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result or not result[1]:  # Not verified
+            raise HTTPException(status_code=404, detail="User not verified with Spotify")
+        
+        access_token = result[0]
+        if not access_token:
+            raise HTTPException(status_code=400, detail="No valid access token")
+        
+        # Get recently played tracks
+        headers = {"Authorization": f"Bearer {access_token}"}
+        response = requests.get(
+            "https://api.spotify.com/v1/me/player/recently-played?limit=20",
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="Failed to fetch recently played tracks")
+        
+        data = response.json()
+        recently_played = []
+        
+        for item in data.get("items", []):
+            track = item["track"]
+            recently_played.append({
+                "track_name": track["name"],
+                "artist_name": ", ".join([artist["name"] for artist in track["artists"]]),
+                "album_name": track["album"]["name"],
+                "played_at": item["played_at"],
+                "track_uri": track["uri"],
+                "external_url": track["external_urls"]["spotify"],
+                "preview_url": track.get("preview_url"),
+                "duration_ms": track.get("duration_ms"),
+                "popularity": track.get("popularity")
+            })
+        
+        return {
+            "success": True,
+            "recently_played": recently_played,
+            "total_tracks": len(recently_played)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching recently played tracks: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch recently played tracks: {str(e)}")
+
+@app.post("/spotify/profile/{user_id}/refresh-connection")
+async def refresh_spotify_connection(user_id: str):
+    """Force refresh Spotify connection and profile data"""
+    try:
+        conn = sqlite3.connect('data/user_credentials.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT spotify_access_token, spotify_refresh_token, spotify_client_id, 
+                   spotify_client_secret, spotify_verified
+            FROM users WHERE user_id = ?
+        ''', (user_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result or not result[4]:  # Not verified
+            raise HTTPException(status_code=404, detail="User not verified with Spotify")
+        
+        access_token, refresh_token, client_id, encrypted_secret, _ = result
+        
+        if not refresh_token:
+            raise HTTPException(status_code=400, detail="No refresh token available")
+        
+        # Refresh the token
+        client_secret = secure_decrypt_credential(user_id, encrypted_secret)
+        refresh_success, new_tokens, refresh_error = await refresh_spotify_token(
+            client_id, client_secret, refresh_token
+        )
+        
+        if not refresh_success or not new_tokens:
+            raise HTTPException(status_code=400, detail=f"Token refresh failed: {refresh_error}")
+        
+        # Get fresh profile
+        profile_success, fresh_profile, profile_error = await get_spotify_user_profile(new_tokens.access_token)
+        
+        if not profile_success or not fresh_profile:
+            raise HTTPException(status_code=400, detail=f"Profile refresh failed: {profile_error}")
+        
+        # Update database
+        conn = sqlite3.connect('data/user_credentials.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE users 
+            SET spotify_access_token = ?, 
+                spotify_refresh_token = ?,
+                spotify_token_expires_at = ?,
+                spotify_profile_data = ?,
+                last_verification = ?
+            WHERE user_id = ?
+        ''', (
+            new_tokens.access_token, 
+            new_tokens.refresh_token,
+            new_tokens.expires_at,
+            json.dumps(fresh_profile.dict()),
+            datetime.now().isoformat(),
+            user_id
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Connection refreshed successfully for user {user_id}")
+        return {
+            "success": True,
+            "verified": True,
+            "spotify_profile": fresh_profile,
+            "message": "Connection refreshed successfully",
+            "last_verification": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing connection: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to refresh connection: {str(e)}")
+
+# Enhanced Playlist Management Models for Phase C.3
+class PlaylistSource(str, Enum):
+    ANGHAMI = "anghami"
+    SPOTIFY = "spotify"
+
+class PlaylistType(str, Enum):
+    OWNED = "owned"
+    CREATED = "created" 
+    FOLLOWED = "followed"
+    ALL = "all"
+
+class EnhancedPlaylist(BaseModel):
+    id: str
+    name: str
+    source: PlaylistSource  # "anghami" or "spotify"
+    type: PlaylistType  # "created", "followed", "owned"
+    creator_name: Optional[str] = None
+    owner_name: Optional[str] = None
+    track_count: int = 0
+    duration: Optional[str] = None
+    duration_ms: Optional[int] = None
+    description: Optional[str] = None
+    cover_art_url: Optional[str] = None
+    cover_art_local_path: Optional[str] = None
+    external_url: Optional[str] = None
+    is_public: Optional[bool] = None
+    is_collaborative: Optional[bool] = None
+    follower_count: Optional[int] = None
+    created_at: Optional[str] = None
+    last_modified: Optional[str] = None
+    # Visual indicators
+    type_indicator: str = ""  # 🎵 for owned/created, ➕ for followed
+    source_indicator: str = ""  # Anghami/Spotify logos
+
+class EnhancedPlaylistResponse(BaseModel):
+    playlists: List[EnhancedPlaylist]
+    pagination: Dict[str, Any]
+    summary: Dict[str, Any]
+    filters_applied: Dict[str, Any]
+
+class PlaylistFilterRequest(BaseModel):
+    sources: Optional[List[PlaylistSource]] = None  # ["anghami", "spotify"]
+    types: Optional[List[PlaylistType]] = None  # ["created", "followed", "owned"]
+    search_query: Optional[str] = None
+    creator_filter: Optional[str] = None
+    page: int = 1
+    limit: int = 20
+    sort_by: str = "name"  # name, track_count, created_at, last_modified
+    sort_order: str = "asc"  # asc, desc
+    user_id: Optional[str] = None  # Spotify user ID
+    anghami_profile_url: Optional[str] = None  # Anghami profile URL
+
+# Helper functions for internal use
+async def get_anghami_playlists_internal(profile_url: str, type: str = "all", page: int = 1, limit: int = 20):
+    """Internal function to get Anghami playlists"""
+    return await get_anghami_playlists(profile_url=profile_url, type=type, page=page, limit=limit)
+
+async def get_spotify_playlists_internal(user_id: str, type: str = "all", include_tracks: bool = False, page: int = 1, limit: int = 20):
+    """Internal function to get Spotify playlists"""
+    return await get_spotify_playlists(user_id=user_id, type=type, include_tracks=include_tracks, page=page, limit=limit)
+
+async def get_anghami_playlists_summary_internal(profile_url: str):
+    """Internal function to get Anghami playlists summary"""
+    return await get_anghami_playlists_summary(profile_url=profile_url)
+
+# Enhanced playlist endpoints for Phase C.3
+
+@app.post("/playlists/enhanced")
+async def get_enhanced_playlists(filters: PlaylistFilterRequest):
+    """
+    Enhanced playlist endpoint that provides both Anghami and Spotify playlists
+    with filtering, search, and enhanced metadata for Phase C.3
+    """
+    try:
+        logger.info(f"🎵 Getting enhanced playlists with filters: {filters.dict()}")
+        
+        all_playlists = []
+        anghami_count = 0
+        spotify_count = 0
+        
+        # Get Anghami playlists if requested
+        if not filters.sources or PlaylistSource.ANGHAMI in filters.sources:
+            try:
+                # Use current profile if no URL provided
+                profile_url = filters.anghami_profile_url or (current_profile.profile_url if current_profile else None)
+                
+                if profile_url:
+                    # Always get all Anghami playlists, then filter on our side
+                    anghami_playlists = await get_anghami_playlists_internal(
+                        profile_url=profile_url,
+                        type="all",  # Always get all types from Anghami
+                        page=1,
+                        limit=100  # Get all for client-side filtering
+                    )
+                    
+                    # Convert to enhanced format
+                    for playlist in anghami_playlists["playlists"]:
+                        enhanced = EnhancedPlaylist(
+                            id=playlist["id"],
+                            name=playlist["name"],
+                            source=PlaylistSource.ANGHAMI,
+                            type=PlaylistType.CREATED if playlist["type"] == "created" else PlaylistType.FOLLOWED,
+                            creator_name=playlist.get("creator_name"),
+                            track_count=playlist.get("track_count", 0),
+                            description=playlist.get("description"),
+                            cover_art_url=playlist.get("cover_art_url"),
+                            external_url=playlist.get("anghami_url"),
+                            type_indicator="🎵" if playlist["type"] == "created" else "➕",
+                            source_indicator="🎼"  # Anghami indicator
+                        )
+                        all_playlists.append(enhanced)
+                        anghami_count += 1
+                        
+            except Exception as e:
+                logger.warning(f"Could not load Anghami playlists: {e}")
+        
+        # Get Spotify playlists if requested
+        if not filters.sources or PlaylistSource.SPOTIFY in filters.sources:
+            if filters.user_id:
+                # Always get all Spotify playlists, then filter on our side
+                spotify_playlists = await get_spotify_playlists_internal(
+                    user_id=filters.user_id,
+                    type="all",  # Always get all types from Spotify
+                    include_tracks=False,
+                    page=1,
+                    limit=100  # Get all for client-side filtering
+                )
+                
+                # Convert to enhanced format
+                for playlist in spotify_playlists["playlists"]:
+                    playlist_type = PlaylistType.OWNED if playlist["type"] == "owned" else PlaylistType.FOLLOWED
+                    
+                    enhanced = EnhancedPlaylist(
+                        id=playlist["id"],
+                        name=playlist["name"],
+                        source=PlaylistSource.SPOTIFY,
+                        type=playlist_type,
+                        owner_name=playlist.get("owner_name"),
+                        track_count=playlist.get("track_count", 0),
+                        duration=playlist.get("total_duration"),
+                        description=playlist.get("description"),
+                        cover_art_url=playlist.get("cover_art_url"),
+                        external_url=playlist.get("external_url"),
+                        is_public=playlist.get("is_public"),
+                        is_collaborative=playlist.get("is_collaborative"),
+                        follower_count=playlist.get("follower_count"),
+                        type_indicator="🎵" if playlist["type"] == "owned" else "➕",
+                        source_indicator="🎵"  # Spotify indicator
+                    )
+                    all_playlists.append(enhanced)
+                    spotify_count += 1
+            # No user_id provided - skip Spotify playlists
+        
+        # Apply search filter
+        if filters.search_query:
+            search_lower = filters.search_query.lower()
+            all_playlists = [
+                p for p in all_playlists
+                if search_lower in p.name.lower() 
+                or (p.description and search_lower in p.description.lower())
+                or (p.creator_name and search_lower in p.creator_name.lower())
+                or (p.owner_name and search_lower in p.owner_name.lower())
+            ]
+        
+        # Apply type filter
+        if filters.types:
+            # Convert filter types to enum values if they're strings
+            filter_types = []
+            for filter_type in filters.types:
+                if isinstance(filter_type, str):
+                    if filter_type == "owned":
+                        filter_types.append(PlaylistType.OWNED)
+                    elif filter_type == "created":
+                        filter_types.append(PlaylistType.CREATED)
+                    elif filter_type == "followed":
+                        filter_types.append(PlaylistType.FOLLOWED)
+                else:
+                    filter_types.append(filter_type)
+            
+            all_playlists = [p for p in all_playlists if p.type in filter_types]
+        
+        # Apply creator filter
+        if filters.creator_filter:
+            creator_lower = filters.creator_filter.lower()
+            all_playlists = [
+                p for p in all_playlists
+                if (p.creator_name and creator_lower in p.creator_name.lower())
+                or (p.owner_name and creator_lower in p.owner_name.lower())
+            ]
+        
+        # Sort playlists
+        reverse_order = filters.sort_order == "desc"
+        if filters.sort_by == "name":
+            all_playlists.sort(key=lambda p: p.name.lower(), reverse=reverse_order)
+        elif filters.sort_by == "track_count":
+            all_playlists.sort(key=lambda p: p.track_count, reverse=reverse_order)
+        elif filters.sort_by == "created_at":
+            all_playlists.sort(key=lambda p: p.created_at or "", reverse=reverse_order)
+        elif filters.sort_by == "last_modified":
+            all_playlists.sort(key=lambda p: p.last_modified or "", reverse=reverse_order)
+        
+        # Apply pagination
+        total_playlists = len(all_playlists)
+        start_idx = (filters.page - 1) * filters.limit
+        end_idx = start_idx + filters.limit
+        paginated_playlists = all_playlists[start_idx:end_idx]
+        
+        # Calculate pagination info
+        total_pages = (total_playlists + filters.limit - 1) // filters.limit
+        has_next = filters.page < total_pages
+        has_prev = filters.page > 1
+        
+        # Create response
+        response = EnhancedPlaylistResponse(
+            playlists=paginated_playlists,
+            pagination={
+                "page": filters.page,
+                "limit": filters.limit,
+                "total": total_playlists,
+                "total_pages": total_pages,
+                "has_next": has_next,
+                "has_prev": has_prev
+            },
+            summary={
+                "total_anghami": anghami_count,
+                "total_spotify": spotify_count,
+                "total_all": total_playlists,
+                "displayed": len(paginated_playlists),
+                "anghami_created": len([p for p in all_playlists if p.source == PlaylistSource.ANGHAMI and p.type == PlaylistType.CREATED]),
+                "anghami_followed": len([p for p in all_playlists if p.source == PlaylistSource.ANGHAMI and p.type == PlaylistType.FOLLOWED]),
+                "spotify_owned": len([p for p in all_playlists if p.source == PlaylistSource.SPOTIFY and p.type == PlaylistType.OWNED]),
+                "spotify_followed": len([p for p in all_playlists if p.source == PlaylistSource.SPOTIFY and p.type == PlaylistType.FOLLOWED])
+            },
+            filters_applied={
+                "sources": filters.sources or ["anghami", "spotify"],
+                "types": filters.types or ["all"],
+                "search_query": filters.search_query,
+                "creator_filter": filters.creator_filter,
+                "sort_by": filters.sort_by,
+                "sort_order": filters.sort_order
+            }
+        )
+        
+        logger.info(f"✅ Enhanced playlists response: {total_playlists} total, {len(paginated_playlists)} displayed")
+        return response
+        
+    except Exception as e:
+        logger.error(f"❌ Error in enhanced playlists endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/playlists/enhanced/sources")
+async def get_available_playlist_sources(user_id: str = None, anghami_profile_url: str = None):
+    """Get available playlist sources and their counts"""
+    try:
+        sources = {}
+        
+        # Check Anghami availability
+        if anghami_profile_url or (current_profile and current_profile.is_valid):
+            try:
+                profile_url = anghami_profile_url or current_profile.profile_url
+                anghami_summary = await get_anghami_playlists_summary_internal(profile_url)
+                sources["anghami"] = {
+                    "available": True,
+                    "total_created": anghami_summary.get("total_created", 0),
+                    "total_followed": anghami_summary.get("total_followed", 0),
+                    "total_all": anghami_summary.get("total_all", 0),
+                    "profile_name": anghami_summary.get("profile_name")
+                }
+            except Exception as e:
+                sources["anghami"] = {"available": False, "error": str(e)}
+        else:
+            sources["anghami"] = {"available": False, "error": "No Anghami profile selected"}
+        
+        # Check Spotify availability
+        if user_id:
+            try:
+                spotify_summary = await get_spotify_playlists_internal(user_id, type="all", page=1, limit=1)
+                sources["spotify"] = {
+                    "available": True,
+                    "total_owned": spotify_summary["summary"]["total_owned"],
+                    "total_followed": spotify_summary["summary"]["total_followed"],
+                    "total_all": spotify_summary["summary"]["total_all"],
+                    "user_name": spotify_summary["summary"]["user_display_name"]
+                }
+            except Exception as e:
+                sources["spotify"] = {"available": False, "error": str(e)}
+        else:
+            sources["spotify"] = {"available": False, "error": "No Spotify user authenticated"}
+        
+        return sources
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting available sources: {e}")
+        return {"anghami": {"available": False}, "spotify": {"available": False}}
 
 # Main entry point
 if __name__ == "__main__":

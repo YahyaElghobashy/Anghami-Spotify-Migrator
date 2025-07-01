@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+**ALWAYS** refer to this plan before any implementation
+**ALWAYS** follow design-guidelines.mdc for all aesthetic decisions
+**DOCUMENT** every change, decision, and implementation detail in the plan
+**NEVER** proceed to next task until current one is 100% complete, tested, and production-ready
+----------------------------
+
+# 🎵 Anghami to Spotify Migration Tool - Implementation Plan
+
+## 📋 Standardized Task Execution Protocol
+Every development task follows this strict sequence:
+**Read & Plan**
+Read all relevant .mdc files (requirements, tech stack, design, etc.).
+Summarize the full approach: "Explain the full approach you'd take to implement this. Just tell, don't code."
+Wait for user approval if required.
+**Testify**
+If tests don't exist, write them first.
+If tests exist, run them before and after code changes.
+**Execute**: Write or update code, strictly following the folder structure and stack definitions in .mdc files.
+**Validate**:
+Run all tests.
+If UI was changed, use Browser MCP to capture screenshots and logs.
+Log test output or errors.
+**Document**:
+Update .mdc files first (purpose, location, logic notes).
+Offer to sync .md (human-readable) documentation.
+Consider updating DAILY_CHANGES.md for daily progress.
+**Control**: Do not start another task until the current one is fully tested, validated, and documented.
+
+### Summary
+**The development cycle is**: Plan → Test → Code → Validate & Refine → Document → Control

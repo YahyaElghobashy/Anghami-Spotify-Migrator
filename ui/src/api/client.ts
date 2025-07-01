@@ -129,17 +129,155 @@ interface SpotifyUserProfile {
   verified: boolean;
 }
 
+interface SpotifyRecentlyPlayed {
+  track_name: string;
+  artist_name: string;
+  album_name: string;
+  played_at: string;
+  track_uri: string;
+  external_url: string;
+  preview_url?: string;
+  duration_ms?: number;
+  popularity?: number;
+}
+
+interface SpotifyFullProfile {
+  spotify_id: string;
+  display_name: string;
+  email?: string;
+  avatar_url?: string;
+  follower_count?: number;
+  country?: string;
+  subscription_type?: string;
+  verified: boolean;
+  // Enhanced data
+  total_public_playlists?: number;
+  total_following?: number;
+  recently_played?: SpotifyRecentlyPlayed[];
+  connection_status: string; // active, expired, invalid
+  last_activity?: string;
+  oauth_scopes?: string[];
+}
+
 interface SpotifyVerificationResponse {
   verified: boolean;
-  spotify_profile?: SpotifyUserProfile;
+  spotify_profile?: SpotifyFullProfile;
   message?: string;
   error?: string;
 }
 
 interface SpotifyProfileResponse {
   verified: boolean;
-  spotify_profile?: SpotifyUserProfile;
+  spotify_profile?: SpotifyFullProfile;
   last_verification?: string;
+  connection_status?: string;
+}
+
+interface SpotifyOAuthResponse {
+  success: boolean;
+  auth_url?: string;
+  message?: string;
+  error?: string;
+}
+
+interface SpotifyOAuthCallbackResponse {
+  success: boolean;
+  verified: boolean;
+  spotify_profile?: SpotifyFullProfile;
+  message?: string;
+  error?: string;
+}
+
+interface SpotifyRecentlyPlayedResponse {
+  success: boolean;
+  recently_played: SpotifyRecentlyPlayed[];
+  total_tracks: number;
+}
+
+// Enhanced Playlist Types for Phase C.3
+export interface EnhancedPlaylist {
+  id: string;
+  name: string;
+  source: 'anghami' | 'spotify';
+  type: 'owned' | 'created' | 'followed';
+  creator_name?: string;
+  owner_name?: string;
+  track_count: number;
+  duration?: string;
+  duration_ms?: number;
+  description?: string;
+  cover_art_url?: string;
+  cover_art_local_path?: string;
+  external_url?: string;
+  is_public?: boolean;
+  is_collaborative?: boolean;
+  follower_count?: number;
+  created_at?: string;
+  last_modified?: string;
+  type_indicator: string; // 🎵 for owned/created, ➕ for followed
+  source_indicator: string; // Anghami/Spotify logos
+}
+
+export interface EnhancedPlaylistResponse {
+  playlists: EnhancedPlaylist[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+  summary: {
+    total_anghami: number;
+    total_spotify: number;
+    total_all: number;
+    displayed: number;
+    anghami_created: number;
+    anghami_followed: number;
+    spotify_owned: number;
+    spotify_followed: number;
+  };
+  filters_applied: {
+    sources: string[];
+    types: string[];
+    search_query?: string;
+    creator_filter?: string;
+    sort_by: string;
+    sort_order: string;
+  };
+}
+
+export interface PlaylistFilterRequest {
+  sources?: ('anghami' | 'spotify')[];
+  types?: ('owned' | 'created' | 'followed')[];
+  search_query?: string;
+  creator_filter?: string;
+  page?: number;
+  limit?: number;
+  sort_by?: 'name' | 'track_count' | 'created_at' | 'last_modified';
+  sort_order?: 'asc' | 'desc';
+  user_id?: string;  // Spotify user ID
+  anghami_profile_url?: string;  // Anghami profile URL
+}
+
+export interface PlaylistSources {
+  anghami: {
+    available: boolean;
+    total_created?: number;
+    total_followed?: number;
+    total_all?: number;
+    profile_name?: string;
+    error?: string;
+  };
+  spotify: {
+    available: boolean;
+    total_owned?: number;
+    total_followed?: number;
+    total_all?: number;
+    user_name?: string;
+    error?: string;
+  };
 }
 
 // API Client Class
@@ -271,6 +409,58 @@ class APIClient {
 
   async getSpotifyProfile(userId: string): Promise<SpotifyProfileResponse> {
     return this.request(`/spotify/profile/${userId}`);
+  }
+
+  // Enhanced OAuth Verification Methods
+  async startSpotifyOAuth(userId: string, redirectUri?: string): Promise<SpotifyOAuthResponse> {
+    return this.request('/spotify/oauth/start', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        user_id: userId,
+        redirect_uri: redirectUri || 'http://127.0.0.1:8888/callback'
+      }),
+    });
+  }
+
+  async handleSpotifyOAuthCallback(code: string, state: string, redirectUri?: string): Promise<SpotifyOAuthCallbackResponse> {
+    return this.request('/spotify/oauth/callback', {
+      method: 'POST',
+      body: JSON.stringify({
+        code,
+        state,
+        redirect_uri: redirectUri || 'http://127.0.0.1:8888/callback'
+      }),
+    });
+  }
+
+  async getDetailedSpotifyProfile(userId: string): Promise<SpotifyProfileResponse> {
+    return this.request(`/spotify/profile/${userId}/detailed`);
+  }
+
+  async getRecentlyPlayedTracks(userId: string): Promise<SpotifyRecentlyPlayedResponse> {
+    return this.request(`/spotify/profile/${userId}/recently-played`);
+  }
+
+  async refreshSpotifyConnection(userId: string): Promise<SpotifyVerificationResponse> {
+    return this.request(`/spotify/profile/${userId}/refresh-connection`, {
+      method: 'POST',
+    });
+  }
+
+  // Enhanced Playlist Management - Phase C.3
+  async getEnhancedPlaylists(filters: PlaylistFilterRequest): Promise<EnhancedPlaylistResponse> {
+    return this.request('/playlists/enhanced', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  }
+
+  async getPlaylistSources(userId?: string, anghamiProfileUrl?: string): Promise<PlaylistSources> {
+    const params = new URLSearchParams();
+    if (userId) params.append('user_id', userId);
+    if (anghamiProfileUrl) params.append('anghami_profile_url', anghamiProfileUrl);
+    
+    return this.request(`/playlists/enhanced/sources?${params.toString()}`);
   }
 
   // WebSocket connection for real-time updates
@@ -466,7 +656,7 @@ export async function getUserCredentials(userId: string) {
   return await response.json();
 }
 
-// Spotify Verification Utilities
+// Enhanced Spotify Verification Utilities
 export async function verifySpotifyAccount(userId: string): Promise<SpotifyVerificationResponse> {
   try {
     toast.loading('Verifying Spotify account...', { id: 'spotify-verification' });
@@ -485,6 +675,42 @@ export async function verifySpotifyAccount(userId: string): Promise<SpotifyVerif
   }
 }
 
+export async function startSpotifyOAuth(userId: string): Promise<string | null> {
+  try {
+    toast.loading('Starting Spotify verification...', { id: 'spotify-oauth' });
+    const result = await apiClient.startSpotifyOAuth(userId);
+    
+    if (result.success && result.auth_url) {
+      toast.success('Redirecting to Spotify...', { id: 'spotify-oauth' });
+      return result.auth_url;
+    } else {
+      toast.error(result.error || 'Failed to start verification', { id: 'spotify-oauth' });
+      return null;
+    }
+  } catch (error) {
+    toast.error('Failed to start Spotify verification', { id: 'spotify-oauth' });
+    throw error;
+  }
+}
+
+export async function handleSpotifyOAuthCallback(code: string, state: string): Promise<SpotifyOAuthCallbackResponse> {
+  try {
+    toast.loading('Completing Spotify verification...', { id: 'spotify-oauth-callback' });
+    const result = await apiClient.handleSpotifyOAuthCallback(code, state);
+    
+    if (result.success && result.verified) {
+      toast.success(result.message || 'Spotify account verified successfully!', { id: 'spotify-oauth-callback' });
+    } else {
+      toast.error(result.error || 'Verification failed', { id: 'spotify-oauth-callback' });
+    }
+    
+    return result;
+  } catch (error) {
+    toast.error('OAuth verification failed', { id: 'spotify-oauth-callback' });
+    throw error;
+  }
+}
+
 export async function getSpotifyProfile(userId: string): Promise<SpotifyProfileResponse> {
   try {
     const profile = await apiClient.getSpotifyProfile(userId);
@@ -495,5 +721,169 @@ export async function getSpotifyProfile(userId: string): Promise<SpotifyProfileR
   }
 }
 
+export async function getDetailedSpotifyProfile(userId: string): Promise<SpotifyProfileResponse> {
+  try {
+    const profile = await apiClient.getDetailedSpotifyProfile(userId);
+    return profile;
+  } catch (error) {
+    console.error('Failed to get detailed Spotify profile:', error);
+    return { verified: false, spotify_profile: undefined, last_verification: undefined };
+  }
+}
+
+export async function getRecentlyPlayedTracks(userId: string): Promise<SpotifyRecentlyPlayedResponse> {
+  try {
+    const tracks = await apiClient.getRecentlyPlayedTracks(userId);
+    return tracks;
+  } catch (error) {
+    console.error('Failed to get recently played tracks:', error);
+    return { success: false, recently_played: [], total_tracks: 0 };
+  }
+}
+
+export async function refreshSpotifyConnection(userId: string): Promise<SpotifyVerificationResponse> {
+  try {
+    toast.loading('Refreshing Spotify connection...', { id: 'spotify-refresh' });
+    const result = await apiClient.refreshSpotifyConnection(userId);
+    
+    if (result.verified) {
+      toast.success('Connection refreshed successfully!', { id: 'spotify-refresh' });
+    } else {
+      toast.error(result.error || 'Failed to refresh connection', { id: 'spotify-refresh' });
+    }
+    
+    return result;
+  } catch (error) {
+    toast.error('Failed to refresh connection', { id: 'spotify-refresh' });
+    throw error;
+  }
+}
+
 // Export types for external use
-export type { SpotifyUserProfile, SpotifyVerificationResponse, SpotifyProfileResponse }; 
+export type { 
+  SpotifyUserProfile, 
+  SpotifyFullProfile,
+  SpotifyRecentlyPlayed,
+  SpotifyVerificationResponse, 
+  SpotifyProfileResponse,
+  SpotifyOAuthResponse,
+  SpotifyOAuthCallbackResponse,
+  SpotifyRecentlyPlayedResponse
+}; 
+
+// Enhanced Playlist Management Utilities for Phase C.3
+
+export async function loadEnhancedPlaylists(
+  filters: PlaylistFilterRequest
+): Promise<EnhancedPlaylistResponse> {
+  try {
+    toast.loading('Loading playlists...', { id: 'loading-enhanced-playlists' });
+    
+    const response = await apiClient.getEnhancedPlaylists(filters);
+    
+    toast.success(
+      `Found ${response.summary.total_all} playlists (${response.summary.total_anghami} Anghami, ${response.summary.total_spotify} Spotify)`, 
+      { id: 'loading-enhanced-playlists' }
+    );
+    
+    return response;
+  } catch (error) {
+    toast.error('Failed to load playlists', { id: 'loading-enhanced-playlists' });
+    throw error;
+  }
+}
+
+export async function getAvailablePlaylistSources(
+  userId?: string, 
+  anghamiProfileUrl?: string
+): Promise<PlaylistSources> {
+  try {
+    const sources = await apiClient.getPlaylistSources(userId, anghamiProfileUrl);
+    return sources;
+  } catch (error) {
+    console.error('Failed to get playlist sources:', error);
+    // Return default structure on error
+    return {
+      anghami: { available: false, error: 'Failed to load' },
+      spotify: { available: false, error: 'Failed to load' }
+    };
+  }
+}
+
+// Utility functions for playlist filtering and display
+
+export function createDefaultFilters(): PlaylistFilterRequest {
+  return {
+    sources: ['anghami', 'spotify'],
+    types: ['owned', 'created', 'followed'],
+    page: 1,
+    limit: 12,
+    sort_by: 'name',
+    sort_order: 'asc'
+  };
+}
+
+export function formatPlaylistDuration(durationMs?: number, durationString?: string): string {
+  if (durationString && durationString !== 'Unknown' && durationString !== '0m') {
+    return durationString;
+  }
+  
+  if (durationMs && durationMs > 0) {
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
+  }
+  
+  return 'Unknown';
+}
+
+export function getPlaylistTypeLabel(type: string): string {
+  switch (type) {
+    case 'owned':
+    case 'created':
+      return 'Created';
+    case 'followed':
+      return 'Followed';
+    default:
+      return type;
+  }
+}
+
+export function getPlaylistSourceLabel(source: string): string {
+  switch (source) {
+    case 'anghami':
+      return 'Anghami';
+    case 'spotify':
+      return 'Spotify';
+    default:
+      return source;
+  }
+}
+
+export function getPlaylistTypeColor(type: string): string {
+  switch (type) {
+    case 'owned':
+    case 'created':
+      return 'text-emerald-600 dark:text-emerald-400';
+    case 'followed':
+      return 'text-fuchsia-600 dark:text-fuchsia-400';
+    default:
+      return 'text-slate-600 dark:text-slate-400';
+  }
+}
+
+export function getPlaylistSourceColor(source: string): string {
+  switch (source) {
+    case 'anghami':
+      return 'text-rose-600 dark:text-rose-400';
+    case 'spotify':
+      return 'text-emerald-600 dark:text-emerald-400';
+    default:
+      return 'text-slate-600 dark:text-slate-400';
+  }
+} 
