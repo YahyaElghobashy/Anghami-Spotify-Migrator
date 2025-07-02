@@ -297,10 +297,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                             <SiSpotify className="h-3 w-3 text-emerald-600" />
                             <span>
                               {spotifyProfile?.subscription_type || 'Spotify'} • 
-                              {spotifyProfile?.connection_status === 'active' ? ' Connected' : 
-                               spotifyProfile?.connection_status === 'expired' ? ' Token Expired' :
-                               spotifyProfile?.connection_status === 'invalid' ? ' Connection Invalid' :
-                               ' Verified'}
+                                {spotifyProfile?.connection_status === 'active' ? ' Running' :
+                                 spotifyProfile?.connection_status === 'expired' || spotifyProfile?.connection_status === 'token_expired' ? ' Token Expired' :
+                                 spotifyProfile?.connection_status === 'invalid' ? ' Connection Invalid' :
+                                 ' Verified'}
                             </span>
                           </span>
                         ) : (
