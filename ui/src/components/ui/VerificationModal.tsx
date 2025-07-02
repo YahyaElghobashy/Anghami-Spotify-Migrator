@@ -103,20 +103,32 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
     setIsRefreshing(true);
     try {
       const result = await refreshSpotifyConnection(userId);
-      
-      if (result.verified && result.spotify_profile) {
-        setProfile(result.spotify_profile);
-        setLastUpdated(new Date().toISOString());
-        onProfileUpdate?.(result.spotify_profile);
-        
-        // Reload recently played tracks
-        try {
-          const tracksResponse = await getRecentlyPlayedTracks(userId);
-          if (tracksResponse.success) {
-            setRecentlyPlayed(tracksResponse.recently_played);
+
+      if (result.verified) {
+        let updatedProfile = result.spotify_profile;
+
+        // If API did not return the updated profile, fetch it manually
+        if (!updatedProfile) {
+          const profileResponse = await getDetailedSpotifyProfile(userId);
+          if (profileResponse.verified && profileResponse.spotify_profile) {
+            updatedProfile = profileResponse.spotify_profile;
           }
-        } catch (error) {
-          console.warn('Failed to reload recently played tracks:', error);
+        }
+
+        if (updatedProfile) {
+          setProfile(updatedProfile);
+          setLastUpdated(new Date().toISOString());
+          onProfileUpdate?.(updatedProfile);
+
+          // Reload recently played tracks
+          try {
+            const tracksResponse = await getRecentlyPlayedTracks(userId);
+            if (tracksResponse.success) {
+              setRecentlyPlayed(tracksResponse.recently_played);
+            }
+          } catch (error) {
+            console.warn('Failed to reload recently played tracks:', error);
+          }
         }
       }
     } catch (error) {
@@ -160,7 +172,9 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
   const getConnectionStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'text-emerald-600';
-      case 'expired': return 'text-amber-600';
+      case 'expired':
+      case 'token_expired':
+        return 'text-amber-600';
       case 'invalid': return 'text-red-600';
       default: return 'text-slate-600';
     }
@@ -169,9 +183,25 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
   const getConnectionStatusIcon = (status: string) => {
     switch (status) {
       case 'active': return <CheckCircle className="h-4 w-4 text-emerald-600" />;
-      case 'expired': return <AlertCircle className="h-4 w-4 text-amber-600" />;
+      case 'expired':
+      case 'token_expired':
+        return <AlertCircle className="h-4 w-4 text-amber-600" />;
       case 'invalid': return <AlertCircle className="h-4 w-4 text-red-600" />;
       default: return <Shield className="h-4 w-4 text-slate-600" />;
+    }
+  };
+
+  const formatConnectionStatus = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'Running';
+      case 'expired':
+      case 'token_expired':
+        return 'Token Expired';
+      case 'invalid':
+        return 'Connection Invalid';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
 
@@ -301,9 +331,9 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
                     </h3>
                     <div className="flex items-center space-x-2">
                       {getConnectionStatusIcon(profile.connection_status)}
-                      <span className={`text-sm font-medium ${getConnectionStatusColor(profile.connection_status)}`}>
-                        {profile.connection_status.charAt(0).toUpperCase() + profile.connection_status.slice(1)}
-                      </span>
+                        <span className={`text-sm font-medium ${getConnectionStatusColor(profile.connection_status)}`}>
+                          {formatConnectionStatus(profile.connection_status)}
+                        </span>
                     </div>
                   </div>
                 </CardHeader>
