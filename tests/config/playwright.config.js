@@ -26,8 +26,8 @@ module.exports = defineConfig({
   
   // Global test configuration
   use: {
-    // Base URL for tests
-    baseURL: 'http://localhost:5173',
+    // Base URL for tests - updated to correct port
+    baseURL: 'http://localhost:3000',
     
     // Browser settings
     headless: process.env.CI ? true : false,
@@ -99,8 +99,8 @@ module.exports = defineConfig({
   // Development server configuration
   webServer: [
     {
-      command: 'cd ../../ui && npm run dev',
-      port: 5173,
+      command: 'cd ../../ui && npm run dev -- --port 3000',
+      port: 3000,
       reuseExistingServer: !process.env.CI,
       timeout: 30000
     },

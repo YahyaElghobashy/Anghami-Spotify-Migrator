@@ -708,7 +708,7 @@ async def get_playlist_details(playlist_id: str):
         playlist_summary = next((p for p in all_playlists if p.id == playlist_id), None)
         
         if not playlist_summary:
-        raise HTTPException(status_code=404, detail="Playlist not found")
+            raise HTTPException(status_code=404, detail="Playlist not found")
     
         # If it's an error playlist, return it as-is
         if playlist_id == "error":

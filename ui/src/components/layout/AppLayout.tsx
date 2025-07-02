@@ -19,6 +19,20 @@ interface SpotifyProfile {
   country?: string;
   subscription_type?: string;
   verified: boolean;
+  // Enhanced data
+  total_public_playlists?: number;
+  total_following?: number;
+  recently_played?: Array<{
+    track_name: string;
+    artist_name: string;
+    album_name: string;
+    played_at: string;
+    track_uri: string;
+    external_url: string;
+  }>;
+  connection_status?: string;
+  last_activity?: string;
+  oauth_scopes?: string[];
 }
 
 export interface AppLayoutProps {
@@ -243,9 +257,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                         </p>
                         {/* Verification Badge */}
                         {spotifyVerified ? (
-                          <div title="Spotify Verified">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onVerifySpotify?.();
+                            }}
+                            className="flex items-center space-x-1 hover:opacity-80 transition-opacity"
+                            title="Click to view verification details"
+                          >
                             <CheckCircle className="h-4 w-4 text-blue-500" />
-                          </div>
+                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                              Verified
+                            </span>
+                          </button>
                         ) : (
                           <div className="flex items-center space-x-1">
                             <div title="Spotify Not Verified">
@@ -271,7 +295,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                         {spotifyVerified ? (
                           <span className="flex items-center space-x-1">
                             <SiSpotify className="h-3 w-3 text-emerald-600" />
-                            <span>{spotifyProfile?.subscription_type || 'Spotify'} • Verified</span>
+                            <span>
+                              {spotifyProfile?.subscription_type || 'Spotify'} • 
+                              {spotifyProfile?.connection_status === 'active' ? ' Connected' : 
+                               spotifyProfile?.connection_status === 'expired' ? ' Token Expired' :
+                               spotifyProfile?.connection_status === 'invalid' ? ' Connection Invalid' :
+                               ' Verified'}
+                            </span>
                           </span>
                         ) : (
                           'Connected'

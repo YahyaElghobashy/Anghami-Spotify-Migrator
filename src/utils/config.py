@@ -22,7 +22,7 @@ class ExtractorConfig:
     user_agent: str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     viewport_width: int = 1920
     viewport_height: int = 1080
-    headless: bool = False
+    headless: bool = True
     
     # Timeouts (in milliseconds)
     page_load_timeout: int = 30000

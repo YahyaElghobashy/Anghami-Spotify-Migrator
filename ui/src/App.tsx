@@ -9,6 +9,7 @@ import { Card, CardContent } from './components/ui/Card';
 import { Button } from './components/ui/Button';
 import { ProgressBar } from './components/ui/Progress';
 import { Input } from './components/ui/Input';
+import { VerificationModal } from './components/ui/VerificationModal';
 import { Search, Music, Clock, PlayCircle } from 'lucide-react';
 import { 
   apiClient, 
@@ -20,11 +21,13 @@ import {
   type ProfileData,
   validateSession,
   logoutUser,
-  // Add Spotify verification imports
+  // Enhanced Spotify verification imports
   verifySpotifyAccount,
-  getSpotifyProfile,
-  type SpotifyUserProfile,
-      type SpotifyVerificationResponse
+  getDetailedSpotifyProfile,
+  startSpotifyOAuth,
+  handleSpotifyOAuthCallback,
+  type SpotifyFullProfile,
+  type SpotifyVerificationResponse
 } from './api/client';
 
 // Application steps - Phase 0 added as first step
@@ -60,8 +63,11 @@ export const App: React.FC = () => {
 
   // Spotify verification state
   const [spotifyVerified, setSpotifyVerified] = useState(false);
-  const [spotifyProfile, setSpotifyProfile] = useState<SpotifyUserProfile | null>(null);
+  const [spotifyProfile, setSpotifyProfile] = useState<SpotifyFullProfile | null>(null);
   const [verificationLoading, setVerificationLoading] = useState(false);
+
+  // Verification modal state
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   // Phase B.1: Navigation Enhancement - Step History and State Preservation
   const [stepHistory, setStepHistory] = useState<Array<{ step: AppStep, screen: AppScreen, timestamp: number }>>([]);
@@ -275,7 +281,7 @@ export const App: React.FC = () => {
   };
 
   // Spotify verification functions
-  const handleVerifySpotify = async () => {
+  const handleVerifySpotify = async (useOAuth: boolean = true) => {
     if (!userSession?.user_id) {
       toast.error('No active user session');
       return;
@@ -283,16 +289,37 @@ export const App: React.FC = () => {
 
     setVerificationLoading(true);
     try {
-      const result = await verifySpotifyAccount(userSession.user_id);
-      
-      if (result.verified && result.spotify_profile) {
-        setSpotifyVerified(true);
-        setSpotifyProfile(result.spotify_profile);
-        toast.success('Spotify account verified successfully!');
+      if (useOAuth) {
+        // Use OAuth for real user verification
+        const authUrl = await startSpotifyOAuth(userSession.user_id);
+        if (authUrl) {
+          // Open OAuth in popup
+          const popup = window.open(authUrl, 'spotify-oauth', 'width=600,height=700');
+          
+          // Listen for OAuth completion
+          const checkClosed = setInterval(() => {
+            if (popup?.closed) {
+              clearInterval(checkClosed);
+              // Refresh profile after OAuth completion
+              setTimeout(() => {
+                loadSpotifyProfile(userSession.user_id);
+              }, 2000);
+            }
+          }, 1000);
+        }
       } else {
-        setSpotifyVerified(false);
-        setSpotifyProfile(null);
-        toast.error(result.error || 'Verification failed');
+        // Use legacy credential verification
+        const result = await verifySpotifyAccount(userSession.user_id);
+        
+        if (result.verified && result.spotify_profile) {
+          setSpotifyVerified(true);
+          setSpotifyProfile(result.spotify_profile);
+          toast.success('Spotify account verified successfully!');
+        } else {
+          setSpotifyVerified(false);
+          setSpotifyProfile(null);
+          toast.error(result.error || 'Verification failed');
+        }
       }
     } catch (error) {
       console.error('Spotify verification error:', error);
@@ -303,10 +330,30 @@ export const App: React.FC = () => {
     }
   };
 
+  // Handle clicking on verified badge to show details
+  const handleVerificationClick = (userId?: string) => {
+    // If a specific userId is provided (from Welcome Back screen), use it
+    const targetUserId = userId || userSession?.user_id;
+    
+    if (targetUserId) {
+      setShowVerificationModal(true);
+      console.log('Opening verification modal for user:', targetUserId);
+    } else {
+      console.warn('No user ID available for verification');
+      toast.error('Unable to load verification details');
+    }
+  };
+
+  // Handle profile update from verification modal
+  const handleProfileUpdate = (updatedProfile: SpotifyFullProfile) => {
+    setSpotifyProfile(updatedProfile);
+    setSpotifyVerified(true);
+  };
+
   // Load Spotify profile on session load
   const loadSpotifyProfile = async (userId: string) => {
     try {
-      const profileResponse = await getSpotifyProfile(userId);
+      const profileResponse = await getDetailedSpotifyProfile(userId);
       
       if (profileResponse.verified && profileResponse.spotify_profile) {
         setSpotifyVerified(true);
@@ -841,11 +888,20 @@ export const App: React.FC = () => {
         // Spotify verification props
         spotifyVerified={spotifyVerified}
         spotifyProfile={spotifyProfile || undefined}
-        onVerifySpotify={handleVerifySpotify}
+        onVerifySpotify={handleVerificationClick}
       >
         {renderMainContent()}
       </AppLayout>
       <Toaster position="top-right" />
+      
+      {/* Verification Modal */}
+      <VerificationModal
+        isOpen={showVerificationModal}
+        onClose={() => setShowVerificationModal(false)}
+        userId={userSession?.user_id || ''}
+        initialProfile={spotifyProfile || undefined}
+        onProfileUpdate={handleProfileUpdate}
+      />
     </>
   );
 }; 

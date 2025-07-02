@@ -60,7 +60,7 @@ class AnghamiUserPlaylistDiscoverer:
         
         async with async_playwright() as p:
             browser = await p.chromium.launch(
-                headless=False,  # Set to True for production
+                headless=True,  # Headless mode for production
                 args=['--no-sandbox', '--disable-blink-features=AutomationControlled']
             )
             

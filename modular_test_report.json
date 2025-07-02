@@ -1,0 +1,126 @@
+{
+  "passed": 18,
+  "failed": 2,
+  "tests": [
+    {
+      "name": "Config module import",
+      "passed": true,
+      "details": "API_HOST: 127.0.0.1",
+      "timestamp": "2025-07-01T22:11:10.249891"
+    },
+    {
+      "name": "Models module import",
+      "passed": true,
+      "details": "All key models imported successfully",
+      "timestamp": "2025-07-01T22:11:10.381046"
+    },
+    {
+      "name": "Database operations import",
+      "passed": true,
+      "details": "All database classes imported",
+      "timestamp": "2025-07-01T22:11:10.401043"
+    },
+    {
+      "name": "Security module import",
+      "passed": true,
+      "details": "Security functions imported",
+      "timestamp": "2025-07-01T22:11:10.421847"
+    },
+    {
+      "name": "OAuth module import",
+      "passed": true,
+      "details": "OAuth functions imported",
+      "timestamp": "2025-07-01T22:11:10.423872"
+    },
+    {
+      "name": "CORS configuration",
+      "passed": true,
+      "details": "Origins: ['http://localhost:3000', 'http://127.0.0.1:3000']",
+      "timestamp": "2025-07-01T22:11:10.423895"
+    },
+    {
+      "name": "Configuration functionality",
+      "passed": false,
+      "details": "type object 'Config' has no attribute 'get_database_url'",
+      "timestamp": "2025-07-01T22:11:10.423903"
+    },
+    {
+      "name": "UserSetupRequest model",
+      "passed": true,
+      "details": "Display name: Test User",
+      "timestamp": "2025-07-01T22:11:10.424844"
+    },
+    {
+      "name": "SpotifyFullProfile model",
+      "passed": true,
+      "details": "User: Test Spotify User",
+      "timestamp": "2025-07-01T22:11:10.424877"
+    },
+    {
+      "name": "ProfileData model",
+      "passed": true,
+      "details": "Profile: Test Profile",
+      "timestamp": "2025-07-01T22:11:10.424897"
+    },
+    {
+      "name": "Database initialization",
+      "passed": true,
+      "details": "All databases initialized",
+      "timestamp": "2025-07-01T22:11:10.439180"
+    },
+    {
+      "name": "Profile database operations",
+      "passed": true,
+      "details": "Stored and retrieved 2 profiles",
+      "timestamp": "2025-07-01T22:11:10.441378"
+    },
+    {
+      "name": "Key vault initialization",
+      "passed": true,
+      "details": "Secure key vault created",
+      "timestamp": "2025-07-01T22:11:10.441433"
+    },
+    {
+      "name": "Credential encryption/decryption",
+      "passed": true,
+      "details": "Secret encrypted and decrypted successfully",
+      "timestamp": "2025-07-01T22:11:10.483242"
+    },
+    {
+      "name": "ID/token generation",
+      "passed": true,
+      "details": "User ID: h_jsWpio..., Session: PyFoSjIZ...",
+      "timestamp": "2025-07-01T22:11:10.483269"
+    },
+    {
+      "name": "OAuth URL generation",
+      "passed": true,
+      "details": "Valid OAuth URL generated",
+      "timestamp": "2025-07-01T22:11:10.483772"
+    },
+    {
+      "name": "FastAPI app creation",
+      "passed": true,
+      "details": "App title: Anghami \u2192 Spotify Migration API",
+      "timestamp": "2025-07-01T22:11:10.868141"
+    },
+    {
+      "name": "Original backend compatibility",
+      "passed": false,
+      "details": "Missing: ['encrypt_credential', 'generate_user_id']",
+      "timestamp": "2025-07-01T22:11:10.881441"
+    },
+    {
+      "name": "Original models compatibility",
+      "passed": true,
+      "details": "All key models present in original",
+      "timestamp": "2025-07-01T22:11:10.881460"
+    },
+    {
+      "name": "Feature parity",
+      "passed": true,
+      "details": "100.0% feature parity achieved",
+      "timestamp": "2025-07-01T22:11:10.881875"
+    }
+  ]
+}

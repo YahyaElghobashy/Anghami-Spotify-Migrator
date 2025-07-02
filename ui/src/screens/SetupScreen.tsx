@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
+import { VerificationModal } from '../components/ui/VerificationModal';
+import { CheckCircle, Shield } from 'lucide-react';
 import * as api from '../api/client';
 
 interface SetupScreenProps {
@@ -15,6 +17,9 @@ interface User {
   has_credentials: boolean;
   created_at: string;
   last_used?: string;
+  spotify_verified?: boolean;
+  spotify_profile?: any;
+  last_verification?: string;
 }
 
 export function SetupScreen({ onSetupComplete }: SetupScreenProps) {
@@ -22,6 +27,10 @@ export function SetupScreen({ onSetupComplete }: SetupScreenProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingUsers, setExistingUsers] = useState<User[]>([]);
+  
+  // Verification modal state
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   
   // New user form state
   const [formData, setFormData] = useState({
@@ -98,6 +107,11 @@ export function SetupScreen({ onSetupComplete }: SetupScreenProps) {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleVerificationClick = (userId: string) => {
+    setSelectedUserId(userId);
+    setShowVerificationModal(true);
   };
 
   // Welcome Screen
@@ -437,14 +451,44 @@ export function SetupScreen({ onSetupComplete }: SetupScreenProps) {
                   className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   <div className="flex-1">
-                    <h3 className="font-medium text-slate-900 dark:text-slate-100">
-                      {user.display_name}
-                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-medium text-slate-900 dark:text-slate-100">
+                        {user.display_name}
+                      </h3>
+                      {/* Verification Badge */}
+                      {user.spotify_verified ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleVerificationClick(user.user_id);
+                          }}
+                          className="flex items-center space-x-1 hover:opacity-80 transition-opacity"
+                          title="Click to view verification details"
+                        >
+                          <CheckCircle className="h-4 w-4 text-blue-500" />
+                          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                            Verified
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="flex items-center space-x-1">
+                          <Shield className="h-3 w-3 text-amber-500" />
+                          <span className="text-xs text-amber-600 dark:text-amber-400">
+                            Not Verified
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
                       <p>Client ID: <span className="font-mono">{user.spotify_client_id.slice(0, 8)}...{user.spotify_client_id.slice(-4)}</span></p>
                       <p>
                         {user.last_used ? `Last used: ${formatDate(user.last_used)}` : `Created: ${formatDate(user.created_at)}`}
                       </p>
+                      {user.spotify_verified && user.last_verification && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                          Verified: {formatDate(user.last_verification)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <Button
@@ -482,5 +526,23 @@ export function SetupScreen({ onSetupComplete }: SetupScreenProps) {
     );
   }
 
-  return null;
+  return (
+    <>
+      {/* Verification Modal */}
+      {selectedUserId && (
+        <VerificationModal
+          isOpen={showVerificationModal}
+          onClose={() => {
+            setShowVerificationModal(false);
+            setSelectedUserId(null);
+          }}
+          userId={selectedUserId}
+          onProfileUpdate={() => {
+            // Optionally refresh users list to update verification status
+            // We could call fetchUsers() here if needed
+          }}
+        />
+      )}
+    </>
+  );
 } 
