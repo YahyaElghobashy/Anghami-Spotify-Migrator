@@ -6,14 +6,14 @@
 
 ### Essential Shortcuts
 ```bash
-./upcom         # Show most used and recent commands
-./excom         # Show all commands categorized with full details
+./upcom         # Show most essential development commands
+./excom         # Show complete command reference with categories
 ```
 
 ### Python CLI Commands
 ```bash
-python3 cli.py upcom           # Same as ./upcom
-python3 cli.py excom           # Same as ./excom
+python3 cli.py upcom           # Show quick commands via CLI
+python3 cli.py excom           # Show all commands via CLI
 python3 cli.py quick-show      # Show most used commands only
 python3 cli.py quick-commands  # Export commands for Cursor
 ```
@@ -30,10 +30,11 @@ python3 cli.py clean-install   # Clean install all dependencies
 
 ### Development Servers
 ```bash
-python3 cli.py start-backend   # Start FastAPI backend (port 8000)
+python3 cli.py start-backend   # Start modular backend (port 8000)
 python3 cli.py start-frontend  # Start React frontend (port 5173)
-python3 cli.py start-dev       # Start both servers together
-./test_integration.sh          # Start full development environment
+python3 cli.py start-both      # Start both servers in parallel ⭐ MOST USED
+python3 cli.py start-dev       # Start full development environment
+./test_integration.sh          # Alternative full development startup
 ```
 
 ### Building & Production
@@ -46,19 +47,20 @@ cd ui && npm run build         # Direct frontend build
 
 ## 🧪 Testing & Validation
 
-### Integration Testing
+### Comprehensive Testing
 ```bash
-./test.sh                      # Run comprehensive test suite
-./test.sh -d                   # Run tests with UI (debug mode)
-./test.sh -b firefox           # Run tests in specific browser
-./test.sh -p mobile-chrome     # Run mobile tests
+./test.sh                      # Run full integration test suite ⭐ RECOMMENDED
+python3 cli.py test-integration # Run comprehensive integration tests
+python3 cli.py test-backend    # Test backend API endpoints specifically
+python3 cli.py test-frontend   # Test frontend application
+python3 cli.py check-integration # Quick service status check
 ```
 
 ### Backend Testing
 ```bash
-python3 cli.py test-backend    # Test all API endpoints
-python3 cli.py check-integration  # Check if services are running
-curl -s http://localhost:8000/health  # Direct health check
+python3 cli.py test-backend    # Test all API endpoints with JSON output
+curl -s http://localhost:8000/health | jq .  # Direct health check
+curl -s http://localhost:8000/profiles/history # Test profiles endpoint
 ```
 
 ### Migration Testing
@@ -97,9 +99,9 @@ rm -rf data/temp/*                 # Manual temp cleanup
 
 ### Process Management
 ```bash
-python3 cli.py kill-servers        # Kill all running servers
-python3 cli.py ports               # Show port usage (3000, 8000)
-lsof -i :3000,8000                 # Direct port check
+python3 cli.py kill-servers        # Kill all running servers ⭐ ESSENTIAL
+python3 cli.py ports               # Show port usage (5173, 8000)
+lsof -i :5173,8000                 # Direct port check
 ```
 
 ### System Status
@@ -117,27 +119,28 @@ git status                         # Git repository status
 ```bash
 python3 cli.py stats               # Show command usage statistics
 python3 cli.py quick-show          # Most used commands
-./upcom                            # Quick commands with recent history
+./upcom                            # Essential commands with workflow
 ```
 
 ### Command Categories (via ./excom)
-- **🚀 Project Setup**: setup, clean-install
-- **🔧 Development**: start-backend, start-frontend, start-dev, build
-- **🧪 Testing**: test-backend, test-migration, check-integration
-- **📊 Data Management**: extract, logs, clean-data
-- **🛠️ Utilities**: ports, kill-servers, status, stats
+- **🔧 Development**: start-backend, start-frontend, start-both, build
+- **🧪 Testing**: test-backend, test-frontend, test-integration, check-integration
+- **🛠️ Utilities**: kill-servers, ports, status, clean-data
+- **📊 Data Management**: extract, logs, stats
+- **🚀 Setup**: setup, clean-install
 - **📋 Quick Access**: upcom, excom, quick-show, quick-commands
 
 ---
 
 ## 🎯 Common Workflows
 
-### Daily Development
+### Daily Development ⭐ RECOMMENDED WORKFLOW
 ```bash
-./upcom                            # Check recent commands
-python3 cli.py start-dev           # Start development environment
-python3 cli.py status              # Check everything is running
-./test.sh                          # Run tests before committing
+./upcom                            # Check essential commands
+python3 cli.py start-both          # Start both servers
+python3 cli.py check-integration   # Verify everything is running
+# ... do development work ...
+python3 cli.py kill-servers        # Clean shutdown
 ```
 
 ### Debugging Issues
@@ -150,29 +153,33 @@ python3 cli.py logs                # Check logs for errors
 
 ### Testing & Quality Assurance
 ```bash
-./test.sh -d                       # Debug mode testing
-./test.sh -p mobile-chrome         # Mobile testing
+./test.sh                          # Comprehensive testing ⭐ PRIMARY
+python3 cli.py test-backend        # Backend-specific testing
+python3 cli.py test-frontend       # Frontend-specific testing
 python3 cli.py test-migration      # Migration testing
 python3 cli.py build               # Production build test
 ```
 
-### Data Extraction
+### Data Extraction & Migration
 ```bash
 python3 cli.py extract 276644689   # Extract playlist by ID
 python3 cli.py logs backend        # Monitor extraction logs
 ls -la data/playlists/             # Check extracted data
+python3 cli.py test-migration      # Test migration process
 ```
 
 ---
 
 ## 💡 Pro Tips
 
-- **Command History**: All commands are tracked in `~/.anghami-spotify-cli/`
-- **Quick Access**: Use `./upcom` for instant command reference
-- **Comprehensive Help**: Use `./excom` for categorized command list
-- **Live Monitoring**: Use `tail -f *.log` for real-time debugging
-- **Git Integration**: All commands work with the clean repository structure
-- **Cross-Platform**: All commands work on macOS, Linux, and Windows (with appropriate shell)
+- **⚡ Quick Start**: Use `python3 cli.py start-both` for fastest development setup
+- **🧪 Quick Test**: Use `python3 cli.py check-integration` to verify services
+- **🛑 Clean Stop**: Always use `python3 cli.py kill-servers` for clean shutdown
+- **📋 Command Discovery**: Use `./upcom` for essentials, `./excom` for complete reference
+- **🔍 Live Monitoring**: Use `tail -f *.log` for real-time debugging
+- **📊 Port Management**: Frontend runs on 5173, Backend on 8000
+- **🏗️ Modular Backend**: Backend now uses `python3 -m backend.main` structure
+- **📈 Usage Tracking**: All commands tracked in `~/.anghami-spotify-cli/`
 
 ---
 
@@ -186,12 +193,12 @@ The CLI tracks:
 
 Access via:
 - `python3 cli.py stats` - Full statistics
-- `./upcom` - Quick recent commands
+- `./upcom` - Essential commands and workflow
 - `./excom` - Complete categorized view
 
 ---
 
 **Repository**: https://github.com/YahyaElghobashy/Anghami-Spotify-Migrator  
-**Status**: ✅ All systems operational and fully tested!
+**Status**: ✅ Modular backend architecture - All systems operational!
 
 *Last updated: 2025-07-01* 

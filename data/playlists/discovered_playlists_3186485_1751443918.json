@@ -1,0 +1,626 @@
+{
+  "user_id": "3186485",
+  "user_url": "https://play.anghami.com/profile/3186485",
+  "created_playlists": [
+    {
+      "id": "113032893",
+      "name": "New",
+      "url": "https://play.anghami.com/playlist/113032893",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=14845752&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "143913227",
+      "name": "Radar Songs",
+      "url": "https://play.anghami.com/playlist/143913227",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/adminupload/radar/v4/radar_en.jpg",
+      "playlist_type": "created"
+    },
+    {
+      "id": "170621058",
+      "name": "Tyga",
+      "url": "https://play.anghami.com/playlist/170621058",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226636&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "174810443",
+      "name": "Music Match Mixtape",
+      "url": "https://play.anghami.com/playlist/174810443",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=118606013&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "178951709",
+      "name": "Arap",
+      "url": "https://play.anghami.com/playlist/178951709",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=173416972&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "181818484",
+      "name": "Yahya's liked podcasts",
+      "url": "https://play.anghami.com/playlist/181818484",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=840100&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211600485",
+      "name": "Night Life",
+      "url": "https://play.anghami.com/playlist/211600485",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226759&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211600504",
+      "name": "Sad",
+      "url": "https://play.anghami.com/playlist/211600504",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226783&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211600511",
+      "name": "EDM",
+      "url": "https://play.anghami.com/playlist/211600511",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226817&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211600551",
+      "name": "Classic",
+      "url": "https://play.anghami.com/playlist/211600551",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226759&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211600589",
+      "name": "Moody Pop",
+      "url": "https://play.anghami.com/playlist/211600589",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226817&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211600683",
+      "name": "Trashyy",
+      "url": "https://play.anghami.com/playlist/211600683",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226759&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211600742",
+      "name": "Bvibe",
+      "url": "https://play.anghami.com/playlist/211600742",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226739&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211600751",
+      "name": "Happy?",
+      "url": "https://play.anghami.com/playlist/211600751",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226817&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211600790",
+      "name": "Love",
+      "url": "https://play.anghami.com/playlist/211600790",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=24226739&size=320",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211601360",
+      "name": "Charlotte Cardin",
+      "url": "https://play.anghami.com/playlist/211601360",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "211601484",
+      "name": "B.up.S",
+      "url": "https://play.anghami.com/playlist/211601484",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "215799509",
+      "name": "Nancy",
+      "url": "https://play.anghami.com/playlist/215799509",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "222811021",
+      "name": "Aurora",
+      "url": "https://play.anghami.com/playlist/222811021",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "222898685",
+      "name": "Evanescence",
+      "url": "https://play.anghami.com/playlist/222898685",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "224839970",
+      "name": "Ni🅱️🅱️a",
+      "url": "https://play.anghami.com/playlist/224839970",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "225226640",
+      "name": "Top Songs 2021",
+      "url": "https://play.anghami.com/playlist/225226640",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "232408899",
+      "name": "Explore sad",
+      "url": "https://play.anghami.com/playlist/232408899",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "238377099",
+      "name": "#2",
+      "url": "https://play.anghami.com/playlist/238377099",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "244236998",
+      "name": "Vibes",
+      "url": "https://play.anghami.com/playlist/244236998",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "244237030",
+      "name": "Party 2",
+      "url": "https://play.anghami.com/playlist/244237030",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "246536678",
+      "name": "Morning ☀️",
+      "url": "https://play.anghami.com/playlist/246536678",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "248926735",
+      "name": "Techno Mosk",
+      "url": "https://play.anghami.com/playlist/248926735",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "249157068",
+      "name": "Drake 🥷",
+      "url": "https://play.anghami.com/playlist/249157068",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "249179803",
+      "name": "Post Malone",
+      "url": "https://play.anghami.com/playlist/249179803",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "249179953",
+      "name": "Khalid",
+      "url": "https://play.anghami.com/playlist/249179953",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "249226018",
+      "name": "Dr.🐭",
+      "url": "https://play.anghami.com/playlist/249226018",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "249511137",
+      "name": "🥷🏿👳🏿‍♂️🦹🏾",
+      "url": "https://play.anghami.com/playlist/249511137",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "251933491",
+      "name": "The Weeknd",
+      "url": "https://play.anghami.com/playlist/251933491",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "253208587",
+      "name": "Florence + ⚙️",
+      "url": "https://play.anghami.com/playlist/253208587",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "255313822",
+      "name": "Top 🥷🏿",
+      "url": "https://play.anghami.com/playlist/255313822",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    },
+    {
+      "id": "261471585",
+      "name": "WailiXDina",
+      "url": "https://play.anghami.com/playlist/261471585",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "created"
+    }
+  ],
+  "followed_playlists": [
+    {
+      "id": "5891520",
+      "name": "Top Anghami International",
+      "url": "https://play.anghami.com/playlist/5891520",
+      "description": "Featuring Rema & Selena Gomez, Miley Cyrus, Metro Boomin, The Weeknd & 21 Savage, Tom Odell",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=165152102&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "34445617",
+      "name": "Just Alan Walker",
+      "url": "https://play.anghami.com/playlist/34445617",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=183939662&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "47570992",
+      "name": "Flashback Pop 2010 - 2015",
+      "url": "https://play.anghami.com/playlist/47570992",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=154873148&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "6921651",
+      "name": "Today's Best Music",
+      "url": "https://play.anghami.com/playlist/6921651",
+      "description": "Alex Warren on cover.",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=224540548&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "16780867",
+      "name": "Ahmed Elghobashy Likes",
+      "url": "https://play.anghami.com/playlist/16780867",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=840100&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "5326454",
+      "name": "FOMO",
+      "url": "https://play.anghami.com/playlist/5326454",
+      "description": "The songs you can’t miss — viral sounds, fresh drops, and genre-benders blowing up the net. Stay ahead or stay jealous. Addison Rae on cover",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=229385587&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "10974427",
+      "name": "timeless shaabi",
+      "url": "https://play.anghami.com/playlist/10974427",
+      "description": "Featuring Hakim, Bosy, Diab, Mahmoud Ellithy",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=201334933&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "102441705",
+      "name": "Just Mahmoud El Leithy",
+      "url": "https://play.anghami.com/playlist/102441705",
+      "description": "Featuring Pousi & Mahmoud Al Leathy, Mahmoud Al Leathy, Sharmoofers, Mahmoud El Esseily",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=224129605&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "24810708",
+      "name": "يوم من عمري",
+      "url": "https://play.anghami.com/playlist/24810708",
+      "description": "Set the mood and enjoy this special wedding playlist featuring Egyptian songs we all love",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=161761404&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "22834629",
+      "name": "Pop Rock",
+      "url": "https://play.anghami.com/playlist/22834629",
+      "description": "Tokio Hotel on cover.",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=223231591&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "109186276",
+      "name": "Grammy Nominees 2018",
+      "url": "https://play.anghami.com/playlist/109186276",
+      "description": "Featuring Bruno Mars, The Weeknd, Ed Sheeran, Lorde",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=154910169&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "45388919",
+      "name": "Top Rock",
+      "url": "https://play.anghami.com/playlist/45388919",
+      "description": "Most popular rock songs topping the charts at this moment.",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=164397097&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "103257358",
+      "name": "The Evolution of Hip-Hop",
+      "url": "https://play.anghami.com/playlist/103257358",
+      "description": "Follow the progression of Hip-Hop, year after year, in this playlist",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=154909849&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "47830729",
+      "name": "New Dance",
+      "url": "https://play.anghami.com/playlist/47830729",
+      "description": "Stryv & Adam Port on cover.",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=230040337&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "64794546",
+      "name": "The Violin Lover",
+      "url": "https://play.anghami.com/playlist/64794546",
+      "description": "Featuring Lindsey Stirling, David Garrett, Hanine El Alam, The Piano Guys",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=187035828&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "145217419",
+      "name": "🎄",
+      "url": "https://play.anghami.com/playlist/145217419",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=67926699&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "145267336",
+      "name": "X-Mas Dinner 🎄🎹",
+      "url": "https://play.anghami.com/playlist/145267336",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=113833943&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "128501909",
+      "name": "Need for Speed - Underground 2 OST [Device]",
+      "url": "https://play.anghami.com/playlist/128501909",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=186378115&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "149000715",
+      "name": "Randomer",
+      "url": "https://play.anghami.com/playlist/149000715",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=109557457&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "128197658",
+      "name": "Classics",
+      "url": "https://play.anghami.com/playlist/128197658",
+      "description": "",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=148581576&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "16515530",
+      "name": "Summer Fun",
+      "url": "https://play.anghami.com/playlist/16515530",
+      "description": "Feel-good dance music that screams summer fun.",
+      "cover_art_url": "https://artwork.anghcdn.co/?id=228356834&size=320",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "147814040",
+      "name": "English",
+      "url": "https://play.anghami.com/playlist/147814040",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "147813049",
+      "name": "Araby",
+      "url": "https://play.anghami.com/playlist/147813049",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "63269860",
+      "name": "Soundtrack Hits",
+      "url": "https://play.anghami.com/playlist/63269860",
+      "description": "A star-studded playlist that will remind you of your favorite movies",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "96255273",
+      "name": "The Grime Collective",
+      "url": "https://play.anghami.com/playlist/96255273",
+      "description": "A playlist encompassing the most significant musical development within the UK in the past two decades",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "21453129",
+      "name": "Walking Into School Like",
+      "url": "https://play.anghami.com/playlist/21453129",
+      "description": "Set the right mood for school with a collection of songs to boost your energy level!",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "17727287",
+      "name": "Pajama Party",
+      "url": "https://play.anghami.com/playlist/17727287",
+      "description": "Featuring Megan Thee Stallion & Dua Lipa, BTS, REVÈ, Alex Chapman",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "10442524",
+      "name": "Timeless Hip-Hop",
+      "url": "https://play.anghami.com/playlist/10442524",
+      "description": "Eminem on cover.",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "21373317",
+      "name": "Pump It Up",
+      "url": "https://play.anghami.com/playlist/21373317",
+      "description": "Turn the music up and… Pump It Up!",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "113958259",
+      "name": "شبرقة",
+      "url": "https://play.anghami.com/playlist/113958259",
+      "description": "Featuring G. Oka, Hoda Bondok, Felo, Sadat El 3Almy",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "100574827",
+      "name": "Boom",
+      "url": "https://play.anghami.com/playlist/100574827",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "71107780",
+      "name": "Timeless Pop",
+      "url": "https://play.anghami.com/playlist/71107780",
+      "description": "Dua Lipa on cover.",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "109555779",
+      "name": "Today's New Releases",
+      "url": "https://play.anghami.com/playlist/109555779",
+      "description": "Lorde on cover.",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "103547202",
+      "name": "New Egyptian Hip-Hop",
+      "url": "https://play.anghami.com/playlist/103547202",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "13359091",
+      "name": "New Arabic Hip-Hop",
+      "url": "https://play.anghami.com/playlist/13359091",
+      "description": "Al9ine on Cover",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "174810443",
+      "name": "Music Match Mixtape",
+      "url": "https://play.anghami.com/playlist/174810443",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "8672190",
+      "name": "Weekend Brunch",
+      "url": "https://play.anghami.com/playlist/8672190",
+      "description": "Featuring The Kid LAROI, The Weeknd & Ariana Grande, Niall Horan, Harry Styles",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "183023314",
+      "name": "arab/oriental techno",
+      "url": "https://play.anghami.com/playlist/183023314",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "166308006",
+      "name": "Yasmin Marzaban Likes",
+      "url": "https://play.anghami.com/playlist/166308006",
+      "description": "",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    },
+    {
+      "id": "91314885",
+      "name": "Dark Pop",
+      "url": "https://play.anghami.com/playlist/91314885",
+      "description": "The darker sound of Pop music. Isabel LaRosa on cover",
+      "cover_art_url": "",
+      "playlist_type": "followed"
+    }
+  ],
+  "total_created": 37,
+  "total_followed": 40
+}

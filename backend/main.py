@@ -6,6 +6,8 @@ A FastAPI server that provides all endpoints for the UI to connect to.
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+from aiohttp import web
 
 # Import configuration and logging
 from .core.config import API_TITLE, API_DESCRIPTION, API_VERSION, ALLOWED_ORIGINS, ensure_data_directory
@@ -56,9 +58,13 @@ app.include_router(users_router)
 app.include_router(oauth_router)
 app.include_router(spotify_router)
 
+# Global variable to keep reference to the aiohttp runner so we can cleanly shut it down
+_callback_runner: web.AppRunner | None = None
+
 @app.on_event("startup")
 async def startup():
-    """Initialize all systems on startup"""
+    """Initialize all systems on startup and start OAuth callback server on port 8888."""
+    global _callback_runner
     logger.info("🚀 Starting Anghami → Spotify Migration API Server...")
     
     # Ensure data directory exists
@@ -71,12 +77,28 @@ async def startup():
     # Initialize security systems
     init_secure_key_vault()
     
+    # --- Start embedded OAuth callback server (port 8888) ---
+    try:
+        from oauth_callback_server import create_app as create_callback_app, CALLBACK_PORT
+        callback_app = await create_callback_app()
+        _callback_runner = web.AppRunner(callback_app)
+        await _callback_runner.setup()
+        site = web.TCPSite(_callback_runner, '127.0.0.1', CALLBACK_PORT)
+        await site.start()
+        logger.info(f"✅ Embedded OAuth callback server running on http://127.0.0.1:{CALLBACK_PORT}")
+    except Exception as e:
+        logger.error(f"❌ Failed to launch embedded OAuth callback server: {e}")
+    
     logger.info("✅ All systems initialized successfully")
 
 @app.on_event("shutdown") 
 async def shutdown():
-    """Clean up on shutdown"""
+    """Clean up on shutdown, including stopping the embedded OAuth callback server."""
+    global _callback_runner
     logger.info("🛑 Shutting down API server...")
+    if _callback_runner:
+        await _callback_runner.cleanup()
+        logger.info("🛑 OAuth callback server stopped")
 
 # Main entry point
 if __name__ == "__main__":

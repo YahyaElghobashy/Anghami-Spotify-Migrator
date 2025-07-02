@@ -143,41 +143,66 @@ class AnghamiSpotifyCLI:
     # === DEVELOPMENT COMMANDS ===
     def start_backend(self):
         """Start the backend API server."""
-        self.run_command("python3 backend_api.py", "Start backend API server")
+        self.run_command("clear && python3 -m backend.main", "Start modular backend API server")
 
     def start_frontend(self):
         """Start the frontend development server."""
-        self.run_command("cd ui && VITE_API_URL=http://localhost:8000 npm run dev", "Start frontend dev server")
+        self.run_command("clear && cd ui && VITE_API_URL=http://localhost:8000 npm run dev", "Start frontend dev server")
 
     def start_full_dev(self):
         """Start both backend and frontend in development mode."""
-        self.run_command("./test_integration.sh", "Start full development environment")
+        self.run_command("clear && ./test_integration.sh", "Start full development environment")
+
+    def start_both_servers(self):
+        """Start both servers in parallel for development."""
+        self.run_command("clear && echo '🚀 Starting both servers...' && (python3 -m backend.main &) && (cd ui && VITE_API_URL=http://localhost:8000 npm run dev)", "Start both frontend and backend servers")
 
     def build_frontend(self):
         """Build the frontend for production."""
-        self.run_command("cd ui && npm run build", "Build frontend for production")
+        self.run_command("clear && cd ui && npm run build", "Build frontend for production")
 
     # === TESTING COMMANDS ===
     def test_backend(self):
         """Test backend API endpoints."""
         commands = [
-            ("curl -s http://localhost:8000/health", "Test backend health"),
+            ("clear", "Clear terminal"),
+            ("echo '🧪 Testing Backend API Endpoints...'", "Starting backend tests"),
+            ("curl -s http://localhost:8000/health | jq .", "Test backend health"),
+            ("curl -s http://localhost:8000/profiles/history | jq .", "Test profiles endpoint"),
             ("curl -s -X POST http://localhost:8000/auth/callback -H 'Content-Type: application/json' -d '{\"code\":\"demo\",\"state\":\"demo\"}'", "Test auth endpoint"),
-            ("curl -s http://localhost:8000/playlists", "Test playlists endpoint"),
         ]
         
         for cmd, desc in commands:
             self.run_command(cmd, desc)
 
+    def test_frontend(self):
+        """Test frontend application."""
+        commands = [
+            ("clear", "Clear terminal"),
+            ("echo '🎨 Testing Frontend Application...'", "Starting frontend tests"),
+            ("cd ui && npm run test -- --run", "Run frontend unit tests"),
+            ("curl -s http://localhost:5173 >/dev/null && echo '✅ Frontend reachable' || echo '❌ Frontend not running'", "Check frontend accessibility"),
+        ]
+        
+        for cmd, desc in commands:
+            self.run_command(cmd, desc)
+
+    def test_integration(self):
+        """Run integration tests."""
+        self.run_command("clear && ./test.sh", "Run comprehensive integration tests")
+
     def test_migration(self):
         """Test the complete migration process."""
-        self.run_command("python3 migrate_playlist.py --test", "Run migration test")
+        self.run_command("clear && python3 migrate_playlist.py --test", "Run migration test")
 
     def check_integration(self):
         """Check if both frontend and backend are running."""
         commands = [
+            ("clear", "Clear terminal"),
+            ("echo '🔍 Checking Service Status...'", "Starting integration check"),
             ("curl -s http://localhost:8000/health | jq .status", "Check backend status"),
-            ("curl -s http://localhost:3000 >/dev/null && echo 'Frontend OK' || echo 'Frontend DOWN'", "Check frontend status"),
+            ("curl -s http://localhost:5173 >/dev/null && echo '✅ Frontend OK' || echo '❌ Frontend DOWN'", "Check frontend status"),
+            ("lsof -i :8000,5173", "Show port usage for both services"),
         ]
         
         for cmd, desc in commands:
@@ -207,9 +232,13 @@ class AnghamiSpotifyCLI:
     def kill_servers(self):
         """Kill any running servers."""
         commands = [
+            ("clear", "Clear terminal"),
+            ("echo '🛑 Stopping all servers...'", "Starting server shutdown"),
             ("pkill -f 'npm run dev'", "Kill frontend dev server"),
-            ("pkill -f 'backend_api.py'", "Kill backend API server"),
+            ("pkill -f 'backend.main'", "Kill modular backend server"),
             ("pkill -f 'uvicorn'", "Kill uvicorn server"),
+            ("pkill -f 'backend_api.py'", "Kill legacy backend server (if any)"),
+            ("echo '✅ All servers stopped'", "Servers shutdown complete"),
         ]
         
         for cmd, desc in commands:
@@ -350,6 +379,30 @@ python3 cli.py status
         print(f"✅ Quick commands exported to: {quick_commands_file}")
         print("📋 You can now access this file in Cursor for easy copy-paste!")
 
+    def restart(self):
+        """Restart both frontend and backend servers, ensuring all relevant ports are free."""
+        commands = [
+            ("clear", "Clear terminal"),
+            ("echo '🔄 Restarting all servers (backend:8000, frontend:3000/5173)...'", "Announce restart"),
+            # Kill all relevant ports (3000, 5173, 8000)
+            ("lsof -ti :3000,5173,8000 | xargs kill -9 2>/dev/null || true", "Kill processes on ports 3000, 5173, 8000 (if any)"),
+            # Also kill by process name for robustness
+            ("pkill -f 'npm run dev' || true", "Kill frontend dev server by name"),
+            ("pkill -f 'backend.main' || true", "Kill modular backend server by name"),
+            ("pkill -f 'uvicorn' || true", "Kill uvicorn server by name"),
+            ("pkill -f 'backend_api.py' || true", "Kill legacy backend server by name"),
+            ("sleep 2", "Wait for ports to be released"),
+            ("echo '✅ All servers stopped. Starting backend on 8000 and frontend on 3000...'", "Announce startup"),
+            # Start backend
+            ("(python3 -m backend.main &)", "Start backend server on 8000"),
+            # Start frontend (on 3000)
+            ("(cd ui && VITE_API_URL=http://localhost:8000 npm run dev -- --port 3000 &)", "Start frontend dev server on 3000"),
+            ("sleep 3", "Wait for servers to start"),
+            ("echo '🚀 Backend: http://localhost:8000 | Frontend: http://localhost:3000'", "Show URLs"),
+        ]
+        for cmd, desc in commands:
+            self.run_command(cmd, desc, track=False)
+
 def main():
     """Main CLI entry point."""
     cli = AnghamiSpotifyCLI()
@@ -367,22 +420,36 @@ def main():
         print("Available commands:")
         print("  setup           - Set up project environment")
         print("  clean-install   - Clean install all dependencies")
-        print("  start-backend   - Start backend API server")
+        print("")
+        print("🔧 Development:")
+        print("  start-backend   - Start modular backend API server")
         print("  start-frontend  - Start frontend dev server")
+        print("  start-both      - Start both servers in parallel")
         print("  start-dev       - Start full development environment")
+        print("  restart         - Restart both servers (force kill + start)")
         print("  build           - Build frontend for production")
+        print("")
+        print("🧪 Testing:")
         print("  test-backend    - Test backend API endpoints")
+        print("  test-frontend   - Test frontend application")
+        print("  test-integration - Run comprehensive integration tests")
         print("  test-migration  - Test migration process")
         print("  check-integration - Check if services are running")
+        print("")
+        print("📊 Data Management:")
         print("  extract         - Extract playlist (requires --playlist-id)")
         print("  logs            - View logs (use --service)")
         print("  clean-data      - Clean temporary data")
+        print("")
+        print("🛠️ Utilities:")
         print("  ports           - Show port usage")
         print("  kill-servers    - Kill running servers")
         print("  status          - Show project status")
         print("  stats           - Show command usage statistics")
-        print("  upcom           - Update and display quick commands in terminal")
-        print("  excom           - Display all commands categorized in terminal")
+        print("")
+        print("📋 Quick Access:")
+        print("  upcom           - Show quick commands")
+        print("  excom           - Display all commands categorized")
         print("  quick-show      - Show most used and recent commands")
         print("  quick-commands  - Export quick commands for Cursor")
         print("")
@@ -396,8 +463,12 @@ def main():
         'start-backend': cli.start_backend,
         'start-frontend': cli.start_frontend,
         'start-dev': cli.start_full_dev,
+        'start-both': cli.start_both_servers,
+        'restart': cli.restart,
         'build': cli.build_frontend,
         'test-backend': cli.test_backend,
+        'test-frontend': cli.test_frontend,
+        'test-integration': cli.test_integration,
         'test-migration': cli.test_migration,
         'check-integration': cli.check_integration,
         'logs': lambda: cli.view_logs(args.service),

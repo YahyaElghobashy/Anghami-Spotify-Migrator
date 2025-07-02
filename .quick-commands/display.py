@@ -85,13 +85,16 @@ def display_all_commands():
             ("clean-install", "Clean install all dependencies"),
         ],
         "🔧 Development": [
-            ("start-backend", "Start backend API server"),
+            ("start-backend", "Start modular backend API server"),
             ("start-frontend", "Start frontend dev server"),
+            ("start-both", "Start both servers in parallel"),
             ("start-dev", "Start full development environment"),
             ("build", "Build frontend for production"),
         ],
         "🧪 Testing": [
             ("test-backend", "Test backend API endpoints"),
+            ("test-frontend", "Test frontend application"),
+            ("test-integration", "Run comprehensive integration tests"),
             ("test-migration", "Test migration process"),
             ("check-integration", "Check if services are running"),
         ],
@@ -107,7 +110,7 @@ def display_all_commands():
             ("stats", "Show command usage statistics"),
         ],
         "📋 Quick Access": [
-            ("upcom", "Update and display quick commands"),
+            ("upcom", "Show quick commands"),
             ("excom", "Display all commands categorized"),
             ("quick-show", "Show most used commands"),
             ("quick-commands", "Export quick commands for Cursor"),
@@ -131,10 +134,11 @@ def display_all_commands():
         print("  No usage statistics available yet")
     
     print(f"\n⚡ Quick Tips:")
-    print(f"  • Run './test_integration.sh' to start the full development environment")
-    print(f"  • Use 'python3 cli.py status' to check project health")
-    print(f"  • Check 'backend.log' and 'frontend.log' for debugging")
-    print(f"  • Run tests with './test.sh' for comprehensive validation")
+    print(f"  • Run 'python3 cli.py start-both' to start both servers quickly")
+    print(f"  • Use 'python3 cli.py kill-servers' to stop all running services")
+    print(f"  • Run 'python3 cli.py check-integration' to verify everything is working")
+    print(f"  • Use './test.sh' for comprehensive testing")
+    print(f"  • Check backend and frontend logs for debugging")
 
 def main():
     """Main entry point."""
